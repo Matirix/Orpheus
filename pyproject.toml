@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "piano-learn"
+version = "0.1.0"
+description = "Piano practice app with real-time detection and YouTube transcription"
+requires-python = ">=3.9,<3.13"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "yt-dlp[default]",
+]
+
+[project.optional-dependencies]
+ml = [
+  "torch",
+  "librosa",
+  "soundfile",
+  "piano-transcription-inference",
+  "numpy<2",
+]
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
+
+[tool.uv.sources]
+torch = { index = "pytorch-rocm", marker = "sys_platform == 'linux'" }
+pytorch-triton-rocm = { index = "pytorch-rocm", marker = "sys_platform == 'linux'" }
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.4"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
