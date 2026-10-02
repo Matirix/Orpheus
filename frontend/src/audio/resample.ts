@@ -5,7 +5,7 @@ export function resampleInput(input: Float32Array, ratio: number): Float32Array 
   const out = new Float32Array(Math.ceil(input.length / ratio) + 1)
   let n = 0
   for (let i = 0; i < input.length; i++) {
-    acc += input[i]
+    acc += input[i] ?? 0
     cnt++
     phase += 1
     if (phase >= ratio) {

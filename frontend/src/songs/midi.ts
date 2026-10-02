@@ -16,7 +16,7 @@ interface ToneJSMidiTrack {
 }
 
 interface ToneJSMidiTimeSignature {
-  timeSignature: [number, number]
+  timeSignature: number[]
 }
 
 interface ToneJSMidiTempo {
@@ -67,7 +67,7 @@ export async function parseMidi(buffer: ArrayBuffer): Promise<Song> {
 
   const tempo = midi.header.tempos[0]?.bpm || 100
   const ts = midi.header.timeSignatures[0]?.timeSignature
-  const bar = ts ? (ts[0] * 4) / ts[1] : 4
+  const bar = ts?.[0] && ts[1] ? (ts[0] * 4) / ts[1] : 4
 
   return { bpm: tempo, bar, parts }
 }

@@ -72,10 +72,10 @@ export function parseMusicXML(text: string): Song {
             const octave = pitch.querySelector('octave')?.textContent
             const alter = pitch.querySelector('alter')?.textContent
             if (step && octave) {
+              const stepValue = STEP_MAP[step] ?? 0
+              const alterValue = parseFloat(alter || '0') || 0
               const midi = Math.round(
-                12 * (parseInt(octave) + 1) +
-                  STEP_MAP[step] +
-                  (parseFloat(alter || '0') || 0)
+                12 * (parseInt(octave) + 1) + stepValue + alterValue
               )
               const tieStop = el.querySelector('tie[type="stop"]')
               if (tieStop) {

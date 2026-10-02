@@ -1,6 +1,5 @@
 export class AudioCapture {
   private context: AudioContext | null = null
-  private stream: MediaStream | null = null
 
   async init(): Promise<AudioContext> {
     this.context = new AudioContext({ latencyHint: 'interactive' })

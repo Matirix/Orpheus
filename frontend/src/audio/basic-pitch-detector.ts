@@ -62,18 +62,23 @@ export class BasicPitchDetector implements NoteDetector {
       node.port.onmessage = (e: MessageEvent) => {
         this.chunkCount++
         const c = e.data as Float32Array
+        const produced: number[] = []
         for (let i = 0; i < c.length; i++) {
-          acc += c[i]
+          acc += c[i] ?? 0
           cnt++
           phase += 1
           if (phase >= ratio) {
             phase -= ratio
-            const outVal = acc / cnt
-            this.ring.copyWithin(0, 1)
-            this.ring[WINDOW - 1] = outVal
+            produced.push(acc / cnt)
             acc = 0
             cnt = 0
           }
+        }
+        // shift once per chunk rather than once per output sample
+        const n = produced.length
+        if (n > 0) {
+          this.ring.copyWithin(0, n)
+          this.ring.set(produced, WINDOW - n)
         }
       }
     }
@@ -87,7 +92,8 @@ export class BasicPitchDetector implements NoteDetector {
 
     let sum = 0
     for (let i = WINDOW - 4096; i < WINDOW; i++) {
-      sum += this.ring[i] * this.ring[i]
+      const v = this.ring[i] ?? 0
+      sum += v * v
     }
     const level = Math.sqrt(sum / 4096)
 
@@ -98,19 +104,24 @@ export class BasicPitchDetector implements NoteDetector {
     }
 
     const t0 = performance.now()
-    let frames: number[][] | null = null
+    const captured: { frames: number[][] | null } = { frames: null }
     try {
-      await this.bp.evaluateModel(this.ring.slice(), (f: number[][]) => {
-        frames = f
-      }, () => {})
+      await this.bp.evaluateModel(
+        this.ring.slice(),
+        (f: number[][]) => {
+          captured.frames = f
+        },
+        () => {}
+      )
     } catch (e) {
       console.error(e)
     }
+    const frames = captured.frames
     const ms = performance.now() - t0
     this.inferMs = this.inferMs ? this.inferMs * 0.8 + ms * 0.2 : ms
 
     if (frames && frames.length) {
-      const [back, count] = READBACK[this.mode]
+      const [back = 0, count = 0] = READBACK[this.mode] ?? []
       const end = frames.length - back
       const start = Math.max(0, end - count)
       const act = new Set<number>()
@@ -118,7 +129,7 @@ export class BasicPitchDetector implements NoteDetector {
         const frameArr = frames[t]
         if (!frameArr) continue
         for (let i = 0; i < frameArr.length; i++) {
-          const p = frameArr[i]
+          const p = frameArr[i] ?? 0
           if (p > this.maxProb) this.maxProb = p
           if (p > this.threshold) {
             act.add(i + 21)
