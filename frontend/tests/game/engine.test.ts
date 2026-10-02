@@ -7,6 +7,13 @@ class FakeClock implements AudioClock {
   time = 0
   played: { freq: number; duration: number; time: number }[] = []
   released = 0
+  primed = false
+  async prime() {
+    this.primed = true
+  }
+  isReady() {
+    return true
+  }
   async start() {}
   now() {
     return this.time
@@ -20,6 +27,13 @@ class FakeClock implements AudioClock {
   }
   releaseAll() {
     this.released++
+  }
+}
+
+/** A clock whose audio module failed to load: now() is not a usable value. */
+class DeadClock extends FakeClock {
+  override isReady() {
+    return false
   }
 }
 
@@ -177,5 +191,71 @@ describe('GameEngine frame loop', () => {
     driver.step(16)
     driver.step(16)
     expect(clock.played.length).toBe(afterFirst)
+  })
+})
+
+describe('listen refuses to run without a live audio clock', () => {
+  it('reports failure instead of finishing instantly', () => {
+    const dead = new DeadClock()
+    const d = makeDriver()
+    const e = new GameEngine({
+      clock: dead,
+      requestFrame: d.requestFrame,
+      cancelFrame: d.cancelFrame,
+    })
+    mount(e)
+    e.setSong(SONG)
+
+    // The bug: with now() stuck at 0 the scheduler computed a large negative
+    // time, queued nothing, and immediately reported "Finished".
+    expect(e.startDemo()).toBe(false)
+    expect(e.getStatus().demoPlaying).toBe(false)
+
+    dead.time = 2
+    d.step(16)
+    expect(dead.played).toHaveLength(0)
+    expect(e.getStatus().scoreText).not.toMatch(/Finished/)
+    e.unmount()
+  })
+})
+
+describe('tempo control', () => {
+  it('restarts scheduling at the new rate', () => {
+    const clock = new FakeClock()
+    const driver = makeDriver()
+    const engine = new GameEngine({
+      clock,
+      requestFrame: driver.requestFrame,
+      cancelFrame: driver.cancelFrame,
+    })
+    mount(engine)
+    engine.setSong(SONG)
+    engine.setBpm(60)
+    expect(engine.startDemo()).toBe(true)
+
+    // At 60bpm a beat lasts a second: after the 2-beat countdown, t=0.2 at
+    // t=2.2s, so only the first note has reached its start time. The second
+    // note (1 beat later) would need t=0.75.
+    clock.time = 2.2
+    driver.step(16)
+    expect(clock.played).toHaveLength(1)
+    engine.unmount()
+  })
+
+  it('stops playback so the new tempo takes effect cleanly', () => {
+    const clock = new FakeClock()
+    const driver = makeDriver()
+    const engine = new GameEngine({
+      clock,
+      requestFrame: driver.requestFrame,
+      cancelFrame: driver.cancelFrame,
+    })
+    mount(engine)
+    engine.setSong(SONG)
+    engine.startDemo()
+    expect(engine.getStatus().demoPlaying).toBe(true)
+    engine.setBpm(90)
+    expect(engine.getStatus().demoPlaying).toBe(false)
+    engine.unmount()
   })
 })

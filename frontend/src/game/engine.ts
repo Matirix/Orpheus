@@ -113,6 +113,14 @@ export class GameEngine {
     this.mode = mode
   }
 
+  /** Live tempo control. Stops playback so the new rate takes effect on restart. */
+  setBpm(bpm: number): void {
+    const next = Math.min(400, Math.max(30, Math.round(bpm)))
+    if (next === this.bpm) return
+    this.bpm = next
+    if (this.demoPlaying) this.stopDemo('Stopped')
+  }
+
   setDiagnostics(d: Diagnostics): void {
     this.diagnostics = d
   }
@@ -164,8 +172,14 @@ export class GameEngine {
     this.emit()
   }
 
-  startDemo(): void {
-    if (!this.song) return
+  startDemo(): boolean {
+    if (!this.song) return false
+    // Without a live audio clock the scheduler would compute a negative time and
+    // report "Finished" instantly, so refuse instead of silently doing nothing.
+    if (!this.clock.isReady()) return false
+    // The render/scheduler loop has to be running for anything to be audible.
+    if (!this.rafHandle) return false
+    if (this.song.parts.every((p) => p.notes.length === 0)) return false
     this.stopDemo()
     this.running = false
     this.notes = buildGameNotes(this.song)
@@ -177,6 +191,7 @@ export class GameEngine {
     this.demoPlaying = true
     this.lastScoreText = ''
     this.setScore('Playing...')
+    return true
   }
 
   stopDemo(message?: string): void {

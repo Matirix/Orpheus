@@ -35,3 +35,32 @@ if (typeof window !== 'undefined') {
 beforeEach(() => {
   storage.clear()
 })
+
+// jsdom does not implement ResizeObserver, which the layout effect uses to keep
+// the keyboard sized to its container.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class ResizeObserverStub implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  globalThis.ResizeObserver =
+    ResizeObserverStub as unknown as typeof ResizeObserver
+}
+
+// jsdom's Blob predates Blob.arrayBuffer(), which the file upload path uses to
+// read MIDI/MusicXML bytes. Real browsers all have it.
+if (typeof Blob !== 'undefined' && !('arrayBuffer' in Blob.prototype)) {
+  Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+    configurable: true,
+    writable: true,
+    value(this: Blob): Promise<ArrayBuffer> {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as ArrayBuffer)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsArrayBuffer(this)
+      })
+    },
+  })
+}

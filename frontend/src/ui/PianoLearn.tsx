@@ -23,6 +23,7 @@ const EMPTY_DIAGNOSTICS = {
 
 export function PianoLearn() {
   const [selected, setSelected] = useState<string>(Object.keys(BUILTIN_SONGS)[0] ?? 'Ode to Joy')
+  const [customNames, setCustomNames] = useState<string[]>(() => library.list())
   const [bpm, setBpm] = useState(120)
   const [mode, setMode] = useState<Mode>('timed')
   const [status, setStatus] = useState<EngineStatus>({
@@ -35,10 +36,10 @@ export function PianoLearn() {
 
   const engineRef = useRef<GameEngine | null>(null)
   const clockRef = useRef<ToneAudioClock | null>(null)
-  const voiceLoadedRef = useRef(false)
   const keyboardElRef = useRef<HTMLDivElement | null>(null)
   const fallingRef = useRef<HTMLCanvasElement | null>(null)
   const staffRef = useRef<HTMLCanvasElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
 
   const engine = useMemo(() => {
     const clock = new ToneAudioClock()
@@ -50,12 +51,12 @@ export function PianoLearn() {
 
   const songs = useMemo(() => {
     const map: Record<string, Song> = { ...BUILTIN_SONGS }
-    for (const name of library.list()) {
+    for (const name of customNames) {
       const loaded = library.load(name)
       if (loaded) map[name] = loaded
     }
     return map
-  }, [])
+  }, [customNames])
 
   const currentSong = songs[selected]
 
@@ -76,16 +77,35 @@ export function PianoLearn() {
     engine.setMode(mode)
   }, [engine, mode])
 
+  // Load the Tone module up front so the Listen click can resume the
+  // AudioContext synchronously, inside the user gesture.
+  useEffect(() => {
+    void clockRef.current?.prime()
+  }, [])
+
+  useEffect(() => {
+    engine.setBpm(bpm)
+  }, [engine, bpm])
+
   useEffect(() => {
     const keyboardEl = keyboardElRef.current
     const falling = fallingRef.current
     const staff = staffRef.current
-    if (!keyboardEl || !falling || !staff) return
-    engine.mount(keyboardEl, falling, staff, window.innerWidth)
-    const onResize = () => engine.mount(keyboardEl, falling, staff, window.innerWidth)
-    window.addEventListener('resize', onResize)
+    const stage = stageRef.current
+    if (!keyboardEl || !falling || !staff || !stage) return
+
+    // Size the keyboard from the stage's own width so it fills the screen
+    // instead of overflowing based on window.innerWidth.
+    const relayout = () => {
+      const width = stage.clientWidth || window.innerWidth
+      engine.mount(keyboardEl, falling, staff, width)
+    }
+    relayout()
+
+    const observer = new ResizeObserver(relayout)
+    observer.observe(stage)
     return () => {
-      window.removeEventListener('resize', onResize)
+      observer.disconnect()
       engine.unmount()
     }
   }, [engine])
@@ -97,19 +117,41 @@ export function PianoLearn() {
       engine.stopDemo('Stopped')
       return
     }
-    setBusy('Loading audio...')
+    // Resume the AudioContext synchronously from the gesture: Tone must be
+    // primed first, otherwise the resume happens after the activation expires.
+    const started = clock.start()
     try {
-      await clock.start()
-      if (!voiceLoadedRef.current) {
-        const voice = await loadVoice()
-        clock.setVoice(voice)
-        voiceLoadedRef.current = true
-      }
-      engine.startDemo()
+      await started
     } catch (err) {
       setStatus((s) => ({
         ...s,
-        scoreText: 'Audio failed: ' + (err instanceof Error ? err.message : String(err)),
+        scoreText:
+          'Audio failed to start: ' +
+          (err instanceof Error ? err.message : String(err)),
+      }))
+      return
+    }
+
+    try {
+      if (!clock.hasVoice()) {
+        setStatus((s) => ({ ...s, scoreText: 'Loading piano sounds...' }))
+        const { voice, sampled, error } = await loadVoice()
+        clock.setVoice(voice)
+        if (!sampled) {
+          console.warn('Listen is using the synth fallback:', error)
+        }
+      }
+      if (!engine.startDemo()) {
+        setStatus((s) => ({
+          ...s,
+          scoreText: 'Could not start playback — is a song selected?',
+        }))
+      }
+    } catch (err) {
+      setStatus((s) => ({
+        ...s,
+        scoreText:
+          'Audio failed: ' + (err instanceof Error ? err.message : String(err)),
       }))
     } finally {
       setBusy('')
@@ -137,6 +179,8 @@ export function PianoLearn() {
           : await parseMidi(buffer)
         const name = file.name.replace(/\.[^.]+$/, '')
         library.save(name, song)
+        // Refresh the menu so the uploaded song is selectable, then select it.
+        setCustomNames(library.list())
         setSelected(name)
         engine.setSong(song)
         setBpm(song.bpm)
@@ -206,7 +250,7 @@ export function PianoLearn() {
       <div className="score">{status.scoreText || ' '}</div>
 
       <canvas ref={staffRef} className="staff-canvas" />
-      <div className="stage">
+      <div className="stage" ref={stageRef}>
         <canvas ref={fallingRef} className="falling-canvas" />
         <div ref={keyboardElRef} className="keyboard" />
       </div>
@@ -222,8 +266,8 @@ export function PianoLearn() {
         .piano-learn .falling-canvas { display: block; background: #0d0f12; border-radius: 8px 8px 0 0; }
         .piano-learn .keyboard { position: relative; height: 120px; }
         .piano-learn .key { position: absolute; top: 0; box-sizing: border-box; border: 1px solid #222; border-radius: 0 0 4px 4px; cursor: pointer; }
-        .piano-learn .white { background: #f4f4f4; width: 28px; height: 120px; z-index: 1; }
-        .piano-learn .black { background: #222; width: 18px; height: 74px; z-index: 2; }
+        .piano-learn .white { background: #f4f4f4; height: 120px; z-index: 1; }
+        .piano-learn .black { background: #222; height: 74px; z-index: 2; }
         .piano-learn .white.on { background: #7dffb2; }
         .piano-learn .black.on { background: #1fa85b; }
       `}</style>

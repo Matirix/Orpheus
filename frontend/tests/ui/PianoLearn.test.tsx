@@ -67,4 +67,21 @@ describe('PianoLearn view', () => {
     // both are driven by KeyboardRenderer.width
     expect(falling.width).toBe(Number.parseInt(keyboard.style.width, 10))
   })
+
+  it('sizes the keyboard to its container instead of the window', () => {
+    // The bug: the keyboard was sized from window.innerWidth, so it overflowed
+    // the narrower stage and forced a horizontal scrollbar.
+    const containerWidth = 1400
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(
+      containerWidth
+    )
+    const { container } = render(<PianoLearn />)
+    const keyboard = container.querySelector('.keyboard') as HTMLElement
+    const keyboardWidth = Number.parseInt(keyboard.style.width, 10)
+
+    expect(keyboardWidth).toBeGreaterThan(0)
+    expect(keyboardWidth).toBeLessThanOrEqual(containerWidth)
+    // and it should actually fill the container, not be a narrow strip
+    expect(keyboardWidth).toBeGreaterThan(containerWidth * 0.9)
+  })
 })
