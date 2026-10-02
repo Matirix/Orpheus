@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Piano Learn – Falling Notes + Basic Pitch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; background: #14161a; color: #e8e8e8; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  button, select { font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 0; }
+  button { background: #4f8cff; color: #fff; cursor: pointer; }
+  button:disabled { background: #444; cursor: default; }
+  select { background: #2a2d33; color: #eee; }
+  .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 10px 0; font-size: 14px; }
+  #status, #score { font-family: ui-monospace, monospace; }
+  #score { color: #7dffb2; font-size: 18px; }
+  #stage { position: relative; margin-top: 12px; overflow-x: auto; }
+  canvas { display: block; background: #0d0f12; border-radius: 8px 8px 0 0; }
+  #sc { background: #f7f4ec; border-radius: 8px; margin-top: 12px; }
+  #kb { position: relative; height: 120px; }
+  .key { position: absolute; top: 0; box-sizing: border-box; border: 1px solid #222; border-radius: 0 0 4px 4px; cursor: pointer; }
+  .white { background: #f4f4f4; width: 28px; height: 120px; z-index: 1; }
+  .black { background: #222; width: 18px; height: 74px; z-index: 2; }
+  .white.on { background: #7dffb2; }
+  .black.on { background: #1fa85b; }
+</style>
+</head>
+<body>
+<h1>Piano Learn</h1>
+
+<div class="row">
+  <button id="mic">1. Start mic</button>
+  <select id="song"></select>
+  <select id="part" style="display:none"></select>
+  <button id="upload" type="button">Upload song</button>
+  <input id="file" type="file" accept=".mid,.midi,.musicxml,.xml,.mxl,.pdf,.png,.jpg,.jpeg" hidden>
+  <input id="yt" type="url" placeholder="YouTube link → MIDI" style="width:230px;padding:8px;border-radius:8px;border:0;background:#2a2d33;color:#eee">
+  <button id="ytgo" type="button">Convert</button>
+  <select id="mode">
+    <option value="wait">Wait mode (notes pause until you play them)</option>
+    <option value="timed">Timed mode (keep up with the tempo)</option>
+  </select>
+  <label>Tempo <input id="bpm" type="range" min="40" max="200" value="70"> <span id="bpmv">70</span> bpm</label>
+  <button id="play" disabled>2. Play</button>
+  <button id="listen" type="button">Listen</button>
+</div>
+<div class="row">
+  <label>Frame threshold <input id="thr" type="range" min="0.1" max="0.8" step="0.05" value="0.3"> <span id="thrv">0.30</span></label>
+  <label>Silence gate <input id="gate" type="range" min="0" max="0.05" step="0.001" value="0.003"> <span id="gatev">0.003</span></label>
+  <label>Detection <select id="rb">
+    <option value="fast">Fast (lowest lag, noisier)</option>
+    <option value="balanced">Balanced</option>
+    <option value="accurate">Accurate (more lag)</option>
+  </select></label>
+</div>
+<div id="status">Idle (you can click the on-screen keys to test without a mic)</div>
+<div id="diag" style="font:12px ui-monospace,monospace;color:#8a93a0;margin:4px 0"></div>
+<div id="score">&nbsp;</div>
+
+<canvas id="sc"></canvas>
+<div id="stage"><canvas id="cv"></canvas><div id="kb"></div></div>
+
+<script type="module">
+import { BasicPitch } from "https://esm.sh/@spotify/basic-pitch@1.0.1";
+
+// Tone.js drives the "Listen" playback. Preloaded here so Tone.start() can run straight from the tap.
+let Tone = null;
+import("https://esm.sh/tone@15.1.22").then(m => { Tone = m; }).catch(e => console.warn("Tone.js failed to load", e));
+
+const MODEL_URL = "https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/model/model.json";
+const SAMPLE_RATE = 22050, WINDOW = 43844, HOP_MS = 150;
+const LOW = 21, HIGH = 108, H = 280, PPB = 70;           // A0..C8 (full 88 keys)
+const WW = Math.max(16, Math.floor((window.innerWidth - 48) / 52));  // 52 white keys, fit the window
+const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const noteName = m => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+const $ = id => document.getElementById(id);
+
+// ---------- songs: [midi | [midi,...], beats] ----------
+const SONGS = {
+  "Ode to Joy": { bpm: 70, items: [[64,1],[64,1],[65,1],[67,1],[67,1],[65,1],[64,1],[62,1],[60,1],[60,1],[62,1],[64,1],[64,1.5],[62,.5],[62,2]] },
+  "Twinkle Twinkle": { bpm: 70, items: [[60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],[65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2]] },
+  "Chords: C – F – G – C": { bpm: 50, items: [[[60,64,67],2],[[60,65,69],2],[[59,62,67],2],[[60,64,67],2]] }
+};
+function seq(items) {
+  let s = 0; const out = [];
+  for (const [m, d] of items) { for (const x of [].concat(m)) out.push({ m: x, s, d, state: 0 }); s += d; }
+  return out;   // state: 0 pending, 1 hit, 2 missed
+}
+for (const k in SONGS) $("song").add(new Option(k, k));
+let barBeats = 4;   // beats per bar for the staff's barlines
+
+// Uploaded songs: { bpm, bar, parts: [{ name, notes: [[midi, startBeat, beats], ...] }] }
+function buildNotes() {
+  const s = SONGS[$("song").value];
+  if (!s.parts) return seq(s.items);
+  const idx = $("part").value;
+  const list = idx === "all" ? s.parts.flatMap(p => p.notes) : s.parts[+idx].notes;
+  return list.map(([m, st, d]) => ({ m, s: st, d, state: 0 }));
+}
+function refreshParts() {
+  const s = SONGS[$("song").value], sel = $("part");
+  sel.style.display = s.parts ? "" : "none";
+  if (!s.parts) return;
+  sel.innerHTML = "";
+  sel.add(new Option("All parts", "all"));
+  s.parts.forEach((p, i) => sel.add(new Option(`${p.name} (${p.notes.length} notes)`, i)));
+}
+$("song").onchange = () => {
+  const s = SONGS[$("song").value];
+  $("bpm").value = Math.min(200, Math.max(40, Math.round(s.bpm)));
+  $("bpm").oninput();
+  refreshParts();
+};
+
+function persist() {
+  try {
+    const up = Object.fromEntries(Object.entries(SONGS).filter(([, s]) => s.parts));
+    localStorage.setItem("pl_songs", JSON.stringify(up));
+  } catch (e) { console.warn("Could not save songs", e); }
+}
+try {   // restore previously uploaded songs
+  const saved = JSON.parse(localStorage.getItem("pl_songs") || "{}");
+  for (const k in saved) { SONGS[k] = saved[k]; $("song").add(new Option(k, k)); }
+} catch (e) {}
+
+async function parseMidi(buf) {
+  const { Midi } = await import("https://esm.sh/@tonejs/midi@2.0.28");
+  const midi = new Midi(buf), ppq = midi.header.ppq;
+  const q = x => Math.round(x * 16) / 16;                      // quantise to 1/16 beat
+  const parts = midi.tracks.filter(t => !t.instrument.percussion).map((t, i) => ({
+    name: t.name || t.instrument.name || `Track ${i + 1}`,
+    notes: t.notes.filter(n => n.midi >= 21 && n.midi <= 108)
+      .map(n => [n.midi, q(n.ticks / ppq), Math.max(0.125, q(n.durationTicks / ppq))])
+  })).filter(p => p.notes.length);
+  const ts = midi.header.timeSignatures[0]?.timeSignature;      // [numerator, denominator]
+  return { bpm: midi.header.tempos[0]?.bpm || 100, bar: ts ? ts[0] * 4 / ts[1] : 4, parts };
+}
+
+function parseMusicXML(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.querySelector("parsererror")) throw new Error("That doesn't look like valid MusicXML.");
+  if (!doc.querySelector("score-partwise")) throw new Error("Only score-partwise MusicXML is supported.");
+  const names = {};
+  doc.querySelectorAll("score-part").forEach(sp =>
+    names[sp.getAttribute("id")] = sp.querySelector("part-name")?.textContent?.trim() || "Part");
+  const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const parts = [];
+  doc.querySelectorAll("score-partwise > part").forEach(p => {
+    let div = 1, pos = 0, lastStart = 0;
+    const notes = [];
+    for (const meas of p.querySelectorAll(":scope > measure")) {
+      for (const el of meas.children) {
+        const tag = el.tagName;
+        if (tag === "attributes") { const dv = el.querySelector("divisions"); if (dv) div = +dv.textContent || div; }
+        else if (tag === "backup") pos -= (+el.querySelector("duration").textContent) / div;
+        else if (tag === "forward") pos += (+el.querySelector("duration").textContent) / div;
+        else if (tag === "note") {
+          if (el.querySelector("grace")) continue;
+          const dur = (+(el.querySelector("duration")?.textContent) || 0) / div;
+          const isChord = !!el.querySelector("chord");
+          const start = isChord ? lastStart : pos;
+          const pitch = el.querySelector("pitch");
+          if (pitch) {
+            const m = 12 * (+pitch.querySelector("octave").textContent + 1)
+              + STEP[pitch.querySelector("step").textContent]
+              + (+(pitch.querySelector("alter")?.textContent) || 0);
+            const tied = el.querySelector('tie[type="stop"]') &&
+              notes.findLast(n => n[0] === m && Math.abs(n[1] + n[2] - start) < 0.01);
+            if (tied) tied[2] += dur; else if (m >= 21 && m <= 108) notes.push([m, start, dur]);
+          }
+          if (!isChord) { lastStart = pos; pos += dur; }
+        }
+      }
+    }
+    if (notes.length) parts.push({ name: names[p.getAttribute("id")] || "Part", notes });
+  });
+  const b = +doc.querySelector("time > beats")?.textContent, bt = +doc.querySelector("time > beat-type")?.textContent;
+  return { bpm: +doc.querySelector("sound[tempo]")?.getAttribute("tempo") || 100, bar: b && bt ? b * 4 / bt : 4, parts };
+}
+
+function addSong(name, song) {
+  SONGS[name] = song;
+  if (![...$("song").options].some(o => o.value === name)) $("song").add(new Option(name, name));
+  $("song").value = name; $("song").onchange(); persist();
+  $("score").textContent = `Loaded "${name}": ${song.parts.reduce((a, p) => a + p.notes.length, 0)} notes in ${song.parts.length} part(s)`;
+}
+
+// YouTube -> MIDI: needs server.py (it serves this page and does the download + transcription).
+$("ytgo").onclick = async () => {
+  const url = $("yt").value.trim();
+  if (!url) return;
+  const say = m => $("score").textContent = m;
+  $("ytgo").disabled = true;
+  try {
+    const r = await fetch("/api/jobs", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Server not reachable. Open this page through server.py.");
+    while (true) {
+      await new Promise(res => setTimeout(res, 2000));       // poll, so long jobs don't hit proxy timeouts
+      const s = await (await fetch(`/api/jobs/${j.id}`)).json();
+      say(s.message);
+      if (s.status === "error") throw new Error(s.message);
+      if (s.status === "done") {
+        const buf = await (await fetch(`/api/jobs/${j.id}/midi`)).arrayBuffer();
+        addSong((s.title || "YouTube song").slice(0, 60), await parseMidi(buf));
+        break;
+      }
+    }
+  } catch (e) { say("Conversion failed: " + e.message); }
+  $("ytgo").disabled = false;
+};
+
+$("upload").onclick = () => $("file").click();
+$("file").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  const ext = f.name.split(".").pop().toLowerCase();
+  try {
+    let song;
+    if (["mid", "midi"].includes(ext)) song = await parseMidi(await f.arrayBuffer());
+    else if (["musicxml", "xml"].includes(ext)) song = parseMusicXML(await f.text());
+    else if (ext === "mxl") throw new Error("Compressed .mxl isn't supported yet. Export an uncompressed .musicxml (or a MIDI file) instead.");
+    else throw new Error("PDFs and images need music recognition first. Convert them to MusicXML with an OMR tool (e.g. Audiveris), then upload that.");
+    if (!song.parts.length) throw new Error("No playable piano-range notes found.");
+    addSong(f.name.replace(/\.[^.]+$/, ""), song);
+  } catch (err) {
+    console.error(err);
+    $("score").textContent = "Upload failed: " + err.message;
+  }
+};
+$("bpm").oninput = () => $("bpmv").textContent = $("bpm").value;
+$("thr").oninput = () => $("thrv").textContent = (+$("thr").value).toFixed(2);
+$("gate").oninput = () => $("gatev").textContent = (+$("gate").value).toFixed(3);
+$("song").onchange();
+
+// ---------- keyboard + geometry ----------
+const keyEls = {}, geom = {};
+let whiteCount = 0;
+for (let m = LOW; m <= HIGH; m++) {
+  const black = [1,3,6,8,10].includes(m % 12);
+  const el = document.createElement("div");
+  el.className = "key " + (black ? "black" : "white");
+  const bw = Math.round(WW * 0.64), w = black ? bw : WW;
+  const x = black ? whiteCount * WW - bw / 2 : whiteCount * WW;
+  el.style.left = x + "px";
+  el.style.width = w + "px";
+  geom[m] = { x, w, black };
+  el.title = noteName(m);
+  $("kb").appendChild(el);
+  keyEls[m] = el;
+  el.onpointerdown = () => manual.add(m);
+  el.onpointerup = el.onpointerleave = () => manual.delete(m);
+  if (!black) whiteCount++;
+}
+const W = whiteCount * WW;
+$("kb").style.width = W + "px";
+const cv = $("cv"); cv.width = W; cv.height = H;
+const g = cv.getContext("2d");
+$("stage").scrollLeft = geom[60].x - $("stage").clientWidth / 2;   // start centred on middle C
+
+// ---------- scrolling grand staff (hand-drawn, synced to song time t) ----------
+const sc = $("sc"), SW = Math.min(W, window.innerWidth - 48), SH = 210;
+sc.width = SW; sc.height = SH;
+const sg = sc.getContext("2d");
+const LS = 10, NOW_X = 110, PXB = 90;                 // line spacing, "now" line x, pixels per beat
+const STAFF = { treble: { bot: 90, base: 30, mid: 34 }, bass: { bot: 150, base: 18, mid: 22 } };
+const LETTER = [0,0,1,1,2,3,3,4,4,5,5,6];
+const dia = m => (Math.floor(m / 12) - 1) * 7 + LETTER[m % 12];   // diatonic step: E4 = 30, G2 = 18
+const SHARP = [1,3,6,8,10];
+
+function drawStaff() {
+  sg.clearRect(0, 0, SW, SH);
+  sg.strokeStyle = "#333"; sg.fillStyle = "#222"; sg.lineWidth = 1;
+  for (const st of [STAFF.treble, STAFF.bass])
+    for (let i = 0; i < 5; i++) {
+      const y = st.bot - i * LS + .5;
+      sg.beginPath(); sg.moveTo(10, y); sg.lineTo(SW - 10, y); sg.stroke();
+    }
+  sg.beginPath(); sg.moveTo(10.5, STAFF.treble.bot - 4 * LS); sg.lineTo(10.5, STAFF.bass.bot); sg.stroke();
+  sg.textAlign = "left";
+  sg.font = "58px serif"; sg.fillText("\u{1D11E}", 18, STAFF.treble.bot + 6);   // treble clef
+  sg.font = "40px serif"; sg.fillText("\u{1D122}", 20, STAFF.bass.bot - 12);    // bass clef
+
+  sg.save(); sg.beginPath(); sg.rect(78, 0, SW - 78, SH); sg.clip();            // notes slide in behind the clefs
+  sg.strokeStyle = "#4f8cff"; sg.lineWidth = 2;                                  // "now" line
+  sg.beginPath(); sg.moveTo(NOW_X, 30); sg.lineTo(NOW_X, SH - 20); sg.stroke();
+  sg.strokeStyle = "#333"; sg.lineWidth = 1;
+  const end = notes.reduce((a, n) => Math.max(a, n.s + n.d), 0);
+  for (let b = barBeats; b < end; b += barBeats) {                               // barline at the end of each bar
+    const x = NOW_X + (b - 0.4 - t) * PXB;
+    sg.beginPath(); sg.moveTo(x, STAFF.treble.bot - 4 * LS); sg.lineTo(x, STAFF.bass.bot); sg.stroke();
+  }
+  for (const n of notes) {
+    const x = NOW_X + (n.s - t) * PXB;
+    if (x > 60 && x < SW + 20) drawStaffNote(n, x);
+  }
+  sg.restore();
+}
+
+function drawStaffNote(n, x) {
+  const st = n.m >= 60 ? STAFF.treble : STAFF.bass, d = dia(n.m);
+  const yOf = l => st.bot - (l - st.base) * LS / 2;
+  const y = yOf(d);
+  if (y < 4 || y > SH - 4) return;
+  const col = COLORS[n.state];
+
+  sg.strokeStyle = "#333"; sg.lineWidth = 1.2;                                   // ledger lines
+  const ledger = l => { sg.beginPath(); sg.moveTo(x - 11, yOf(l)); sg.lineTo(x + 11, yOf(l)); sg.stroke(); };
+  for (let l = st.base - 2; l >= d; l -= 2) ledger(l);
+  for (let l = st.base + 10; l <= d; l += 2) ledger(l);
+
+  sg.save(); sg.translate(x, y); sg.rotate(-0.35);                               // notehead
+  sg.beginPath(); sg.ellipse(0, 0, 6.5, 4.6, 0, 0, Math.PI * 2);
+  if (n.d >= 2) { sg.strokeStyle = col; sg.lineWidth = 2; sg.stroke(); }          // half / whole = open
+  else { sg.fillStyle = col; sg.fill(); }                                         // quarter or shorter = filled
+  sg.restore();
+
+  if (n.d < 4) {                                                                  // stem (+ flag for eighths)
+    const up = d < st.mid, sx = up ? x + 6 : x - 6, ey = up ? y - 35 : y + 35;
+    sg.strokeStyle = col; sg.lineWidth = 1.5;
+    sg.beginPath(); sg.moveTo(sx, y); sg.lineTo(sx, ey);
+    if (n.d < 1) sg.quadraticCurveTo(sx + 12, up ? ey + 8 : ey - 8, sx + 8, up ? ey + 20 : ey - 20);
+    sg.stroke();
+  }
+  if (n.d === 1.5 || n.d === 3) {                                                 // dotted note
+    sg.fillStyle = col; sg.beginPath();
+    sg.arc(x + 12, (d - st.base) % 2 === 0 ? y - 5 : y, 2, 0, Math.PI * 2); sg.fill();
+  }
+  if (SHARP.includes(n.m % 12)) {                                                 // sharp (no flats / key signatures yet)
+    sg.fillStyle = col; sg.font = "20px serif"; sg.textAlign = "right";
+    sg.fillText("\u266F", x - 9, y + 7);
+  }
+}
+
+// ---------- detection state ----------
+let detected = new Set();
+let chunks = 0, maxP = 0;                 // diagnostics: audio chunks received, peak model probability
+let inferMs = 0;                          // smoothed inference time, used to size the timed-mode window
+const manual = new Set();                 // clicked on-screen keys (for testing)
+const released = new Array(128).fill(true);  // pitch has been silent since its last hit
+
+// ---------- mic + Basic Pitch ----------
+const ring = new Float32Array(WINDOW);
+const workletSrc = `
+class Cap extends AudioWorkletProcessor {
+  process(inputs) { const ch = inputs[0][0]; if (ch) this.port.postMessage(ch.slice()); return true; }
+}
+registerProcessor("cap", Cap);`;
+
+async function startMic() {
+  // iOS only lets an AudioContext run if it's created/resumed during the tap itself,
+  // so do it before any await (model loading below would otherwise use up the gesture).
+  const ctx = new AudioContext({ latencyHint: "interactive" });
+  ctx.resume();
+  $("mic").disabled = true;
+  $("status").textContent = "Loading model...";
+  const bp = new BasicPitch(MODEL_URL);
+  await bp.evaluateModel(new Float32Array(WINDOW), () => {}, () => {});   // warm-up
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+  });
+  // Native sample rate (Safari/iPad can fail on a mismatched rate); we downsample to 22050 Hz ourselves.
+  await ctx.resume();
+  const ratio = ctx.sampleRate / SAMPLE_RATE;
+  let acc = 0, cnt = 0, phase = 0;
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletSrc], { type: "application/javascript" })));
+  const node = new AudioWorkletNode(ctx, "cap");
+  ctx.createMediaStreamSource(stream).connect(node);
+  node.port.onmessage = e => {
+    chunks++;
+    const c = e.data, out = new Float32Array(Math.ceil(c.length / ratio) + 1);
+    let n = 0;
+    for (let i = 0; i < c.length; i++) {
+      acc += c[i]; cnt++; phase += 1;
+      if (phase >= ratio) { phase -= ratio; out[n++] = acc / cnt; acc = 0; cnt = 0; }
+    }
+    if (!n) return;
+    ring.copyWithin(0, n); ring.set(out.subarray(0, n), WINDOW - n);
+  };
+  $("status").textContent = "Listening";
+  $("play").disabled = false;
+
+  // [frames back from the newest edge, number of frames read]
+  const READBACK = { fast: [1, 3], balanced: [2, 5], accurate: [3, 6] };
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+
+  setInterval(() => {
+    let s = 0;
+    for (let i = WINDOW - 4096; i < WINDOW; i++) s += ring[i] * ring[i];
+    $("diag").textContent = `ctx ${ctx.state} @ ${ctx.sampleRate} Hz | chunks ${chunks} | level ${Math.sqrt(s / 4096).toFixed(4)} | gate ${(+$("gate").value).toFixed(3)} | peak prob ${maxP.toFixed(2)} | inference ${inferMs.toFixed(0)} ms`;
+    maxP = 0;
+  }, 500);
+
+  // Back-to-back inference: start the next pass the moment the last one ends,
+  // instead of waiting on a fixed timer (removes ~75 ms of average polling delay).
+  while (true) {
+    let sum = 0;
+    for (let i = WINDOW - 4096; i < WINDOW; i++) sum += ring[i] * ring[i];
+    if (Math.sqrt(sum / 4096) < +$("gate").value) { detected = new Set(); await pause(20); continue; }
+
+    const t0 = performance.now();
+    let frames = null;
+    try { await bp.evaluateModel(ring.slice(), f => { frames = f; }, () => {}); } catch (e) { console.error(e); }
+    const ms = performance.now() - t0;
+    inferMs = inferMs ? inferMs * 0.8 + ms * 0.2 : ms;
+    $("status").textContent = `Listening — inference ${inferMs.toFixed(0)} ms`;
+
+    if (frames && frames.length) {
+      const [back, count] = READBACK[$("rb").value];
+      const end = frames.length - back, start = Math.max(0, end - count), act = new Set();
+      for (let t = start; t < end; t++) frames[t].forEach((p, i) => { if (p > maxP) maxP = p; if (p > +$("thr").value) act.add(i + 21); });
+      detected = act;
+    }
+    await pause(0);   // yield so rendering stays smooth
+  }
+}
+$("mic").onclick = () => startMic().catch(e => {
+  console.error(e); $("status").textContent = "Error: " + e.message; $("mic").disabled = false;
+});
+
+// ---------- game ----------
+let notes = [], t = 0, running = false, last = performance.now();
+let demo = false, synth = null, demoNotes = [], nextIdx = 0, audioT0 = 0, demoBps = 1;   // "Listen" playback state
+$("play").onclick = () => {
+  stopDemo();
+  notes = buildNotes(); barBeats = SONGS[$("song").value].bar || 4;
+  t = -2; running = true; last = performance.now();
+  $("score").textContent = "Get ready...";
+};
+// let the user try the game with clicks before the mic is on
+$("play").disabled = false;
+
+// ---------- "Listen": play the selected song through a piano sampler ----------
+async function loadSynth() {
+  const SAL = { A0: "A0.mp3", C8: "C8.mp3" };                 // Salamander Grand Piano sample names
+  for (let o = 1; o <= 7; o++)
+    for (const [k, f] of [["C", "C"], ["D#", "Ds"], ["F#", "Fs"], ["A", "A"]]) SAL[k + o] = f + o + ".mp3";
+  try {
+    return await Promise.race([
+      new Promise(resolve => {
+        const s = new Tone.Sampler({
+          urls: SAL, release: 1, baseUrl: "https://tonejs.github.io/audio/salamander/",
+          onload: () => resolve(s)
+        }).toDestination();
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("sample load timed out")), 20000))
+    ]);
+  } catch (e) {
+    console.warn("Piano samples failed, using a basic synth", e);
+    return new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.005, decay: 0.3, sustain: 0.25, release: 0.8 }
+    }).toDestination();
+  }
+}
+
+async function startDemo() {
+  if (!Tone) { $("score").textContent = "Audio library is still loading, try again in a moment."; return; }
+  const ready = Tone.start();            // must be called straight from the tap (iOS/Safari)
+  stopDemo();
+  $("listen").disabled = true;
+  try {
+    await ready;
+    if (!synth) { $("score").textContent = "Loading piano sounds..."; synth = await loadSynth(); }
+  } catch (e) {
+    $("score").textContent = "Audio failed: " + e.message;
+    $("listen").disabled = false;
+    return;
+  }
+  $("listen").disabled = false;
+  running = false;
+  notes = buildNotes(); barBeats = SONGS[$("song").value].bar || 4;
+  demoNotes = [...notes].sort((a, b) => a.s - b.s);   // same objects as `notes`, ordered by start time
+  nextIdx = 0;
+  demoBps = +$("bpm").value / 60;                      // tempo is fixed for the run
+  audioT0 = Tone.now() + 2 / demoBps;                  // two-beat count-in
+  demo = true;
+  $("listen").textContent = "Stop";
+  $("score").textContent = "Playing...";
+}
+
+function stopDemo(msg) {
+  if (!demo) return;
+  demo = false;
+  try { synth && synth.releaseAll(); } catch (e) {}
+  $("listen").textContent = "Listen";
+  if (msg) $("score").textContent = msg;
+}
+$("listen").onclick = () => demo ? stopDemo("Stopped") : startDemo();
+
+// Runs every frame while playing: keeps the visuals on the audio clock and schedules upcoming notes.
+function demoTick() {
+  const now = Tone.now();
+  t = (now - audioT0) * demoBps;
+  while (nextIdx < demoNotes.length && audioT0 + demoNotes[nextIdx].s / demoBps < now + 0.25) {
+    const n = demoNotes[nextIdx++];
+    const when = Math.max(audioT0 + n.s / demoBps, now);
+    synth.triggerAttackRelease(440 * 2 ** ((n.m - 69) / 12), Math.max(n.d / demoBps, 0.12), when, 0.75);
+  }
+  const act = new Set(manual), isDone = { v: true };
+  for (const n of notes) {
+    if (t >= n.s) n.state = 1;                          // turns green once it has sounded
+    if (t >= n.s && t < n.s + n.d) act.add(n.m);        // light the key while the note is held
+    if (t < n.s + n.d) isDone.v = false;
+  }
+  if (isDone.v) stopDemo("Finished");
+  return act;
+}
+
+const COLORS = ["#4f8cff", "#3ddc84", "#e5484d"];
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  const act = demo ? demoTick() : new Set([...detected, ...manual]);
+  for (let m = 0; m < 128; m++) if (!act.has(m)) released[m] = true;
+
+  if (running) {
+    const mode = $("mode").value, bps = +$("bpm").value / 60, lat = (inferMs / 1000 + 0.3) * bps;
+    const pend = notes.filter(n => n.state === 0);
+    if (mode === "wait") {
+      const nextS = pend.length ? Math.min(...pend.map(n => n.s)) : Infinity;
+      t = Math.min(t + dt * bps, nextS);
+    } else t += dt * bps;
+
+    for (const n of pend) {
+      const inWin = mode === "wait" ? t >= n.s - 0.3 : (t >= n.s - 0.5 && t <= n.s + n.d + lat);
+      if (inWin && act.has(n.m) && released[n.m]) { n.state = 1; released[n.m] = false; }
+      else if (mode === "timed" && t > n.s + n.d + lat) n.state = 2;
+    }
+    const hits = notes.filter(n => n.state === 1).length;
+    if (t >= 0) $("score").textContent = `Hit ${hits} / ${notes.length}`;
+    if (notes.every(n => n.state !== 0)) {
+      running = false;
+      $("score").textContent = `Done! ${hits} / ${notes.length} notes (${Math.round(100 * hits / notes.length)}%)`;
+    }
+  }
+  draw(act);
+  requestAnimationFrame(frame);
+}
+
+function draw(act) {
+  drawStaff();
+  g.clearRect(0, 0, W, H);
+  g.strokeStyle = "#1c2027"; g.lineWidth = 1;
+  for (let m = LOW; m <= HIGH; m++) if (m % 12 === 0) { g.beginPath(); g.moveTo(geom[m].x + .5, 0); g.lineTo(geom[m].x + .5, H); g.stroke(); }
+
+  for (const n of notes) {
+    const k = geom[n.m]; if (!k) continue;
+    const yb = H - (n.s - t) * PPB, yt = yb - n.d * PPB;
+    if (yb < 0 || yt > H) continue;
+    g.fillStyle = COLORS[n.state];
+    g.beginPath(); g.roundRect(k.x + 1, yt + 1, k.w - 2, Math.max(yb - yt - 2, 4), 4); g.fill();
+    if (k.w >= 16) {
+      g.fillStyle = "#fff"; g.font = "10px system-ui"; g.textAlign = "center";
+      g.fillText(noteName(n.m), k.x + k.w / 2, yb - 7);
+    }
+  }
+  g.fillStyle = "#ffffff55"; g.fillRect(0, H - 2, W, 2);   // hit line
+  if ((running || demo) && t < 0) {
+    g.fillStyle = "#fff"; g.font = "28px system-ui"; g.textAlign = "center";
+    g.fillText("Get ready...", W / 2, 60);
+  }
+  for (const m in keyEls) keyEls[m].classList.toggle("on", act.has(+m));
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
