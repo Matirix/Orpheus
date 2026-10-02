@@ -72,27 +72,27 @@ export function parseMusicXML(text: string): Song {
             const octave = pitch.querySelector('octave')?.textContent
             const alter = pitch.querySelector('alter')?.textContent
             if (step && octave) {
-              const midi =
+              const midi = Math.round(
                 12 * (parseInt(octave) + 1) +
-                STEP_MAP[step] +
-                (parseFloat(alter || '0') || 0)
+                  STEP_MAP[step] +
+                  (parseFloat(alter || '0') || 0)
+              )
               const tieStop = el.querySelector('tie[type="stop"]')
               if (tieStop) {
-                // Find last note with same midi at matching position (approx)
-                const tied = notes.findLast(
+                const tiedNote = notes.findLast(
                   (n) =>
                     n.midi === midi &&
                     Math.abs(n.startBeat + n.beats - start) < 0.01
                 )
-                if (tied) {
-                  tied.beats += dur
+                if (tiedNote) {
+                  tiedNote.beats += dur
                 }
               } else if (midi >= 21 && midi <= 108) {
                 notes.push({
                   midi,
                   startBeat: start,
                   beats: dur,
-                })
+                } as Note)
               }
             }
           }
