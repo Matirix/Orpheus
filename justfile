@@ -5,7 +5,7 @@ dev:
 
 test:
 	@echo "=== Frontend tests ===" && cd frontend && npx vitest run
-	@echo "=== Backend tests ===" && python -m pytest backend/tests -v
+	@echo "=== Backend tests ===" && uv run python -m pytest backend/tests -v
 
 lint:
 	@echo "=== Frontend lint ===" && cd frontend && npx eslint . --ext ts,tsx 2>&1 | tail -5

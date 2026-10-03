@@ -10,7 +10,7 @@
 - `cd frontend && npm run build` - Build for production
 
 ### Backend
-- `cd /home/malefor/Projects/piano-detect && python -m pytest backend/tests -v` - Run tests
+- `cd /home/malefor/Projects/piano-detect && uv run python -m pytest backend/tests -v` - Run tests
 - `cd /home/malefor/Projects/piano-detect && uvx ruff check backend` - Lint
 - `cd /home/malefor/Projects/piano-detect && uvx ruff format backend` - Format
 

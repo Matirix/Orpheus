@@ -22,6 +22,11 @@ ml = [
   "numpy<2",
 ]
 
+# uv sync installs this group by default, so tests never depend on the ml
+# extras being present.
+[dependency-groups]
+dev = ["pytest"]
+
 [tool.uv]
 index-strategy = "unsafe-best-match"
 

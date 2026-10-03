@@ -7,7 +7,7 @@ test:
 	@echo "=== Frontend tests ==="
 	@cd frontend && npx vitest run
 	@echo "=== Backend tests ==="
-	@cd /home/malefor/Projects/piano-detect && python -m pytest backend/tests -v
+	@cd /home/malefor/Projects/piano-detect && uv run python -m pytest backend/tests -v
 
 lint:
 	@echo "=== Frontend ==="
