@@ -59,7 +59,7 @@ export class KeyboardRenderer {
       if (!black) this.whiteCount++
     }
     this.teardown = () => disposers.forEach((d) => d())
-    container.style.width = this.width + 'px'
+    container.style.width = Math.round(this.width) + 'px'
   }
 
   /** Total pixel width of the mounted keyboard, derived from its own geometry. */

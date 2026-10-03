@@ -1,4 +1,12 @@
-import { LOW, HIGH, FALLING_HEIGHT, PIXELS_PER_BEAT, NOTE_COLORS, noteName } from './layout'
+import {
+  CANVAS,
+  LOW,
+  HIGH,
+  FALLING_HEIGHT,
+  PIXELS_PER_BEAT,
+  FALLING_NOTE_COLORS,
+  noteName,
+} from './layout'
 import type { KeyGeom } from './keyboard'
 
 export interface FallingNote {
@@ -9,7 +17,7 @@ export interface FallingNote {
 }
 
 function colorFor(state: number): string {
-  return NOTE_COLORS[state] ?? NOTE_COLORS[0] ?? '#4f8cff'
+  return FALLING_NOTE_COLORS[state] ?? FALLING_NOTE_COLORS[0] ?? '#c9963f'
 }
 
 export class FallingRenderer {
@@ -34,7 +42,7 @@ export class FallingRenderer {
     const W = this.canvas?.width ?? 0
     const H = this.canvas?.height ?? FALLING_HEIGHT
     g.clearRect(0, 0, W, H)
-    g.strokeStyle = '#1c2027'
+    g.strokeStyle = CANVAS.lane
     g.lineWidth = 1
     for (let m = LOW; m <= HIGH; m++) {
       const lane = m % 12 === 0 ? geom[m] : undefined
@@ -56,19 +64,19 @@ export class FallingRenderer {
       g.roundRect(k.x + 1, top + 1, k.w - 2, Math.max(bottom - top - 2, 4), 4)
       g.fill()
       if (k.w >= 16) {
-        g.fillStyle = '#fff'
-        g.font = '10px system-ui'
+        g.fillStyle = CANVAS.labelInk
+        g.font = "600 10px 'Archivo Variable', system-ui, sans-serif"
         g.textAlign = 'center'
         g.fillText(noteName(n.m), k.x + k.w / 2, bottom - 7)
       }
     }
-    g.fillStyle = '#ffffff55'
+    g.fillStyle = CANVAS.strike
     g.fillRect(0, H - 2, W, 2)
     if (showCountdown && t < 0) {
-      g.fillStyle = '#fff'
-      g.font = '28px system-ui'
+      g.fillStyle = CANVAS.wellInk
+      g.font = "400 40px 'Bodoni Moda Variable', Georgia, serif"
       g.textAlign = 'center'
-      g.fillText('Get ready...', W / 2, 60)
+      g.fillText('Get ready...', W / 2, 72)
     }
   }
 }

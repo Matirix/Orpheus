@@ -1,9 +1,31 @@
+/* Typefaces are loaded in main.tsx: Bodoni Moda for what you read (title,
+   score) — the didone style music publishers engraved their covers in —
+   Archivo for what you operate. */
+
 :root {
-  --text: #1c2027;
-  --bg: #ffffff;
-  --border: #e5e4e7;
-  --accent: #4f8cff;
-  color-scheme: light;
+  /* Core palette, taken from the instrument rather than a UI picker. */
+  --case: #17130f; /* lacquered body — the page field */
+  --well: #0c0a08; /* recessed cavity behind the falling notes */
+  --paper: #efeae0; /* manuscript stock */
+  --ivory: #f8f5ee; /* key tops, and text on the dark field */
+  --felt: #a32b2b; /* the string felt: marks the present moment */
+  --brass: #c9963f; /* engraved note material — canvases only */
+
+  /* Derived neutrals. */
+  --panel: #211b15;
+  --rule: #332b23;
+  --muted: #9b9184;
+  --ink: #191512;
+
+  --ui: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --display: 'Bodoni Moda Variable', 'Bodoni Moda', Georgia, serif;
+
+  /* Page rhythm. --keyboard-h is read back by PianoLearn when it sizes the
+     falling well, so these two are the source of truth for the stack. */
+  --gutter: clamp(16px, 3vw, 34px);
+  --keyboard-h: 132px;
+
+  color-scheme: dark;
 }
 
 *,
@@ -23,9 +45,12 @@ body {
 }
 
 body {
-  font: 16px/1.45 system-ui, 'Segoe UI', Roboto, sans-serif;
-  color: var(--text);
-  background: var(--bg);
+  min-height: 100svh;
+  background: var(--case);
+  color: var(--ivory);
+  font: 400 15px/1.5 var(--ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -33,4 +58,27 @@ body {
   width: 100%;
   margin: 0;
   padding: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Focus is visible everywhere, including on the keyboard keys. */
+:focus-visible {
+  outline: 2px solid var(--felt);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

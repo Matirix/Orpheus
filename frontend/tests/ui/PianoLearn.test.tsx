@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { PianoLearn } from '../../src/ui/PianoLearn'
+import { MIN_FALLING_HEIGHT } from '../../src/render/layout'
 
 describe('PianoLearn view', () => {
   beforeEach(() => {
@@ -43,7 +44,9 @@ describe('PianoLearn view', () => {
     ) as HTMLCanvasElement
     // 52 white keys at the computed width
     expect(falling.width).toBeGreaterThan(0)
-    expect(falling.height).toBe(280)
+    // the well fills whatever height is left under the manuscript, but never
+    // at the cost of pushing the keyboard off screen
+    expect(falling.height).toBeGreaterThanOrEqual(MIN_FALLING_HEIGHT)
   })
 
   it('highlights a key on the next animation frame while it is held', async () => {

@@ -1,4 +1,4 @@
-import { NOTE_COLORS } from './layout'
+import { CANVAS, NOTE_COLORS } from './layout'
 
 export interface StaffNote {
   m: number
@@ -43,7 +43,7 @@ export function isSharp(midi: number): boolean {
 }
 
 function colorFor(state: number): string {
-  return NOTE_COLORS[state] ?? NOTE_COLORS[0] ?? '#4f8cff'
+  return NOTE_COLORS[state] ?? NOTE_COLORS[0] ?? '#2f2a24'
 }
 
 export class StaffRenderer {
@@ -67,8 +67,8 @@ export class StaffRenderer {
     const SW = this.width
     const SH = STAFF_HEIGHT
     g.clearRect(0, 0, SW, SH)
-    g.strokeStyle = '#333'
-    g.fillStyle = '#222'
+    g.strokeStyle = CANVAS.staffLine
+    g.fillStyle = CANVAS.staffInk
     g.lineWidth = 1
     for (const st of [STAFF.treble, STAFF.bass]) {
       for (let i = 0; i < 5; i++) {
@@ -93,13 +93,13 @@ export class StaffRenderer {
     g.beginPath()
     g.rect(78, 0, SW - 78, SH)
     g.clip()
-    g.strokeStyle = '#4f8cff'
+    g.strokeStyle = CANVAS.playhead
     g.lineWidth = 2
     g.beginPath()
     g.moveTo(NOW_X, 30)
     g.lineTo(NOW_X, SH - 20)
     g.stroke()
-    g.strokeStyle = '#333'
+    g.strokeStyle = CANVAS.staffLine
     g.lineWidth = 1
     const end = notes.reduce((a, n) => Math.max(a, n.s + n.d), 0)
     for (let b = barBeats; b < end; b += barBeats) {
@@ -124,7 +124,7 @@ export class StaffRenderer {
     if (y < 4 || y > STAFF_HEIGHT - 4) return
     const col = colorFor(n.state)
 
-    g.strokeStyle = '#333'
+    g.strokeStyle = CANVAS.staffLine
     g.lineWidth = 1.2
     const ledger = (l: number) => {
       g.beginPath()

@@ -144,12 +144,15 @@ export class GameEngine {
     keyboardEl: HTMLElement,
     fallingCanvas: HTMLCanvasElement,
     staffCanvas: HTMLCanvasElement,
-    viewportWidth: number
+    viewportWidth: number,
+    fallingHeight: number = FALLING_HEIGHT
   ): void {
     this.keyboard.mount(keyboardEl, viewportWidth)
-    const width = this.keyboard.width
-    this.falling.mount(fallingCanvas, width, FALLING_HEIGHT)
-    this.staff.mount(staffCanvas, Math.min(width, viewportWidth - 48))
+    const width = Math.round(this.keyboard.width)
+    // Both surfaces are measured from the keyboard, so the manuscript, the well
+    // and the keys all share one left/right edge instead of drifting apart.
+    this.falling.mount(fallingCanvas, width, fallingHeight)
+    this.staff.mount(staffCanvas, width)
     this.mounted = true
     if (!this.rafHandle) {
       this.lastFrameMs = Number.NaN

@@ -9,6 +9,8 @@ import { parseMidi } from '../songs/midi'
 import { parseMusicXML } from '../songs/musicxml'
 import type { Song } from '../songs/types'
 import type { Mode } from '../game/modes'
+import { MIN_FALLING_HEIGHT } from '../render/layout'
+import './PianoLearn.css'
 
 const library = new LocalStorageSongLibrary()
 
@@ -27,6 +29,20 @@ const EMPTY_DIAGNOSTICS = {
   peakProb: 0,
   inferenceMs: 0,
 }
+
+/**
+ * Height of the white-key row. `--keyboard-h` in index.css is the source of
+ * truth; this fallback is only for environments where the stylesheet does not
+ * cascade (jsdom), so the well still gets a sane size.
+ */
+function keyboardHeight(): number {
+  if (typeof document === 'undefined') return 132
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--keyboard-h')
+  const px = Number.parseFloat(raw)
+  return Number.isFinite(px) && px > 0 ? px : 132
+}
+
+const ALERT_RE = /unavailable|failed|denied|Could not start/i
 
 export function PianoLearn() {
   const [selected, setSelected] = useState<string>(Object.keys(BUILTIN_SONGS)[0] ?? 'Ode to Joy')
@@ -52,6 +68,8 @@ export function PianoLearn() {
   const fallingRef = useRef<HTMLCanvasElement | null>(null)
   const staffRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
+  const mastheadRef = useRef<HTMLElement | null>(null)
+  const noticesRef = useRef<HTMLDivElement | null>(null)
 
   const songs = useMemo(() => {
     const map: Record<string, Song> = { ...BUILTIN_SONGS }
@@ -99,25 +117,45 @@ export function PianoLearn() {
     engine.setBpm(bpm)
   }, [engine, bpm])
 
+  // Size the instrument from the window, not from its own box: measuring the
+  // stage's own width/height feeds the answer back into the question and the
+  // well grows on every frame.
   useEffect(() => {
     const keyboardEl = keyboardElRef.current
     const falling = fallingRef.current
     const staff = staffRef.current
     const stage = stageRef.current
-    if (!keyboardEl || !falling || !staff || !stage) return
+    const masthead = mastheadRef.current
+    const notices = noticesRef.current
+    if (!keyboardEl || !falling || !staff || !stage || !masthead || !notices) return
 
-    // Size the keyboard from the stage's own width so it fills the screen
-    // instead of overflowing based on window.innerWidth.
+    let last = { width: 0, height: 0 }
+
     const relayout = () => {
-      const width = stage.clientWidth || window.innerWidth
-      engine.mount(keyboardEl, falling, staff, width)
+      const width = Math.round(document.documentElement.clientWidth) || window.innerWidth
+      const rect = stage.getBoundingClientRect()
+      // Document-relative so a scrolled page does not distort the answer.
+      const top = rect.top + window.scrollY
+      const height = Math.max(
+        MIN_FALLING_HEIGHT,
+        Math.round(window.innerHeight - top - keyboardHeight())
+      )
+      if (width === last.width && height === last.height) return
+      last = { width, height }
+      engine.mount(keyboardEl, falling, staff, width, height)
     }
-    relayout()
 
+    relayout()
+    // A ResizeObserver only reports size, never movement — so every element
+    // above the stage whose box can grow (the score wrapping, the meter
+    // appearing, the detail panel opening, the staff's first draw) is watched
+    // too, or the keyboard would drift below the fold unnoticed.
     const observer = new ResizeObserver(relayout)
-    observer.observe(stage)
+    for (const el of [stage, staff, masthead, notices]) observer.observe(el)
+    window.addEventListener('resize', relayout)
     return () => {
       observer.disconnect()
+      window.removeEventListener('resize', relayout)
       engine.unmount()
     }
   }, [engine])
@@ -246,12 +284,22 @@ export function PianoLearn() {
   )
 
   const diag = status.diagnostics
+  const scoreText = status.scoreText
+  const micLive = status.playRunning || diag.chunkCount > 0
+  const levelPct = Math.min(100, Math.round(diag.inputLevel * 100))
 
   return (
     <div className="piano-learn">
+      <header className="masthead" ref={mastheadRef}>
+        <h1 className="piece">{selected}</h1>
+        <p className={ALERT_RE.test(scoreText) ? 'score score--alert' : 'score'}>
+          {scoreText || ' '}
+        </p>
+      </header>
+
       <div className="controls">
-        <label>
-          Song{' '}
+        <label className="field">
+          Song
           <select value={selected} onChange={(e) => setSelected(e.target.value)}>
             {Object.keys(songs).map((name) => (
               <option key={name} value={name}>
@@ -260,19 +308,26 @@ export function PianoLearn() {
             ))}
           </select>
         </label>
-        <label>
-          Tempo <input type="range" min={40} max={200} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} />{' '}
-          <span>{bpm}</span>
+        <label className="field">
+          Tempo
+          <input
+            type="range"
+            min={40}
+            max={200}
+            value={bpm}
+            onChange={(e) => setBpm(Number(e.target.value))}
+          />
+          <span className="field-value">{bpm}</span>
         </label>
-        <label>
-          Mode{' '}
+        <label className="field">
+          Mode
           <select value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
             <option value="timed">Timed</option>
             <option value="wait">Wait for you</option>
           </select>
         </label>
-        <label>
-          Load file{' '}
+        <label className="field">
+          Load file
           <input
             type="file"
             accept=".mid,.midi,.xml,.musicxml"
@@ -283,47 +338,57 @@ export function PianoLearn() {
             }}
           />
         </label>
-        <button
-          type="button"
-          onClick={() => void handlePlay()}
-          disabled={busy !== ''}
-        >
-          {status.playRunning ? 'Stop' : 'Play'}
-        </button>
-        <button type="button" onClick={() => void handleListen()} disabled={busy !== ''}>
-          {status.demoPlaying ? 'Stop' : 'Listen'}
-        </button>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => void handlePlay()}
+            disabled={busy !== ''}
+          >
+            {status.playRunning ? 'Stop' : 'Play'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void handleListen()}
+            disabled={busy !== ''}
+          >
+            {status.demoPlaying ? 'Stop' : 'Listen'}
+          </button>
+        </div>
       </div>
 
-      {busy && <div className="busy">{busy}</div>}
-      <div className="status">
-        <div>ctx: {diag.ctxState} @ {diag.ctxSampleRate}</div>
-        <div>chunks: {diag.chunkCount} level: {diag.inputLevel.toFixed(3)} peak: {diag.peakProb.toFixed(2)} infer: {diag.inferenceMs.toFixed(0)}ms</div>
+      <div className="notices" ref={noticesRef}>
+        <div className="busy">{busy || ' '}</div>
+        <div className="telemetry">
+        {micLive && (
+          <div className="meter" aria-hidden="true">
+            <div className="meter-fill" style={{ width: `${levelPct}%` }} />
+          </div>
+        )}
+          <details className="details">
+            <summary>Input detail</summary>
+            <div className="status">
+              <div>
+                ctx: {diag.ctxState} @ {diag.ctxSampleRate}
+              </div>
+              <div>
+                chunks: {diag.chunkCount} level: {diag.inputLevel.toFixed(3)} peak:{' '}
+                {diag.peakProb.toFixed(2)} infer: {diag.inferenceMs.toFixed(0)}ms
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
-      <div className="score">{status.scoreText || ' '}</div>
 
-      <canvas ref={staffRef} className="staff-canvas" />
-      <div className="stage" ref={stageRef}>
-        <canvas ref={fallingRef} className="falling-canvas" />
-        <div ref={keyboardElRef} className="keyboard" />
+      <div className="instrument">
+        <canvas ref={staffRef} className="staff-canvas" />
+        <div className="felt" />
+        <div className="stage" ref={stageRef}>
+          <canvas ref={fallingRef} className="falling-canvas" />
+          <div ref={keyboardElRef} className="keyboard" />
+        </div>
       </div>
-
-      <style>{`
-        .piano-learn { font-family: system-ui, sans-serif; }
-        .piano-learn .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; }
-        .piano-learn .busy { color: #8a93a0; font-size: 13px; }
-        .piano-learn .status { font: 12px ui-monospace, monospace; color: #8a93a0; }
-        .piano-learn .score { color: #7dffb2; font-size: 18px; min-height: 24px; }
-        .piano-learn .staff-canvas { display: block; background: #f7f4ec; border-radius: 8px; margin-top: 12px; }
-        .piano-learn .stage { position: relative; margin-top: 12px; overflow-x: auto; width: 100%; }
-        .piano-learn .falling-canvas { display: block; background: #0d0f12; border-radius: 8px 8px 0 0; }
-        .piano-learn .keyboard { position: relative; height: 120px; }
-        .piano-learn .key { position: absolute; top: 0; box-sizing: border-box; border: 1px solid #222; border-radius: 0 0 4px 4px; cursor: pointer; }
-        .piano-learn .white { background: #f4f4f4; height: 120px; z-index: 1; }
-        .piano-learn .black { background: #222; height: 74px; z-index: 2; }
-        .piano-learn .white.on { background: #7dffb2; }
-        .piano-learn .black.on { background: #1fa85b; }
-      `}</style>
     </div>
   )
 }

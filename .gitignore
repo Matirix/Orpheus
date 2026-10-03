@@ -24,3 +24,7 @@ dist/
 
 # Logs
 *.log
+
+# Agent tooling (local skills, not project source)
+.agents/
+skills-lock.json
