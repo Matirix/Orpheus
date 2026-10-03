@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GameEngine, type EngineStatus } from '../game/engine'
 import { ToneAudioClock } from '../playback/clock'
 import { loadVoice } from '../playback/sampler'
+import type { NoteDetector } from '../audio/detector'
 import { BUILTIN_SONGS } from '../songs/builtin'
 import { LocalStorageSongLibrary } from '../songs/library'
 import { parseMidi } from '../songs/midi'
@@ -10,6 +11,12 @@ import type { Song } from '../songs/types'
 import type { Mode } from '../game/modes'
 
 const library = new LocalStorageSongLibrary()
+
+/** The clock and the engine must be the same instance pair. */
+function createEnginePair(): { clock: ToneAudioClock; engine: GameEngine } {
+  const clock = new ToneAudioClock()
+  return { clock, engine: new GameEngine({ clock }) }
+}
 
 const EMPTY_DIAGNOSTICS = {
   ctxState: 'closed',
@@ -34,20 +41,17 @@ export function PianoLearn() {
   })
   const [busy, setBusy] = useState('')
 
-  const engineRef = useRef<GameEngine | null>(null)
-  const clockRef = useRef<ToneAudioClock | null>(null)
+  // Held as one state object, not a useMemo + ref: React re-runs the factory
+  // under StrictMode, and a ref written during render keeps the *discarded*
+  // clock while the engine keeps its own — so priming the ref primed the wrong
+  // clock and Listen never played.
+  const [{ clock, engine }] = useState(createEnginePair)
+
+  const detectorRef = useRef<NoteDetector | null>(null)
   const keyboardElRef = useRef<HTMLDivElement | null>(null)
   const fallingRef = useRef<HTMLCanvasElement | null>(null)
   const staffRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
-
-  const engine = useMemo(() => {
-    const clock = new ToneAudioClock()
-    clockRef.current = clock
-    const e = new GameEngine({ clock })
-    engineRef.current = e
-    return e
-  }, [])
 
   const songs = useMemo(() => {
     const map: Record<string, Song> = { ...BUILTIN_SONGS }
@@ -77,11 +81,19 @@ export function PianoLearn() {
     engine.setMode(mode)
   }, [engine, mode])
 
+  // Release the microphone whenever the view unmounts.
+  useEffect(() => {
+    return () => {
+      detectorRef.current?.stop()
+      detectorRef.current = null
+    }
+  }, [])
+
   // Load the Tone module up front so the Listen click can resume the
   // AudioContext synchronously, inside the user gesture.
   useEffect(() => {
-    void clockRef.current?.prime()
-  }, [])
+    void clock.prime()
+  }, [clock])
 
   useEffect(() => {
     engine.setBpm(bpm)
@@ -111,8 +123,6 @@ export function PianoLearn() {
   }, [engine])
 
   const handleListen = useCallback(async () => {
-    const clock = clockRef.current
-    if (!clock) return
     if (status.demoPlaying) {
       engine.stopDemo('Stopped')
       return
@@ -141,10 +151,11 @@ export function PianoLearn() {
           console.warn('Listen is using the synth fallback:', error)
         }
       }
-      if (!engine.startDemo()) {
+      const refusal = engine.startDemo()
+      if (refusal) {
         setStatus((s) => ({
           ...s,
-          scoreText: 'Could not start playback — is a song selected?',
+          scoreText: `Could not start playback: ${refusal}`,
         }))
       }
     } catch (err) {
@@ -156,15 +167,53 @@ export function PianoLearn() {
     } finally {
       setBusy('')
     }
-  }, [engine, status.demoPlaying])
+  }, [clock, engine, status.demoPlaying])
 
-  const handlePlay = useCallback(() => {
+  /** Stops the mic detector and clears anything it was holding down. */
+  const stopMic = useCallback(() => {
+    detectorRef.current?.stop()
+    detectorRef.current = null
+    engine.setDetected(new Set())
+    engine.setDiagnostics(EMPTY_DIAGNOSTICS)
+  }, [engine])
+
+  const handlePlay = useCallback(async () => {
     if (status.playRunning) {
       engine.stopPlay()
+      stopMic()
       return
     }
-    engine.startPlay()
-  }, [engine, status.playRunning])
+    setBusy('Requesting microphone access...')
+    try {
+      if (!detectorRef.current) {
+        // Loaded on demand: Basic Pitch only matters once Play is pressed.
+        const { BasicPitchDetector } = await import(
+          '../audio/basic-pitch-detector'
+        )
+        const detector = new BasicPitchDetector()
+        detector.onNotes((notes) => {
+          engine.setDetected(notes)
+          engine.setDiagnostics(detector.getDiagnostics())
+        })
+        // start() is what prompts for the microphone.
+        await detector.start()
+        detectorRef.current = detector
+        engine.setDiagnostics(detector.getDiagnostics())
+      }
+      engine.startPlay()
+    } catch (err) {
+      const name = err instanceof Error ? err.name : ''
+      const reason =
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'microphone permission was denied'
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      setStatus((s) => ({ ...s, scoreText: `Microphone unavailable: ${reason}` }))
+    } finally {
+      setBusy('')
+    }
+  }, [engine, status.playRunning, stopMic])
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -234,7 +283,11 @@ export function PianoLearn() {
             }}
           />
         </label>
-        <button type="button" onClick={handlePlay}>
+        <button
+          type="button"
+          onClick={() => void handlePlay()}
+          disabled={busy !== ''}
+        >
           {status.playRunning ? 'Stop' : 'Play'}
         </button>
         <button type="button" onClick={() => void handleListen()} disabled={busy !== ''}>

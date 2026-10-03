@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:listen": "node scripts/listen.smoke.mjs",
+    "test:play": "node scripts/play.smoke.mjs"
   },
   "dependencies": {
     "@spotify/basic-pitch": "^1.0.1",
@@ -35,6 +37,7 @@
     "globals": "^15.14.0",
     "jsdom": "^25.0.1",
     "prettier": "^3.4.2",
+    "puppeteer-core": "^24.43.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.17.0",
     "vite": "^8.3.0",

@@ -40,15 +40,69 @@ Keyboard keys used `el.onpointerdown = ...`. That silently fails in environments
 without PointerEvent IDL attributes (jsdom) and leaks listeners across remounts.
 Now uses `addEventListener` with explicit teardown.
 
+### Listen played nothing (fixed)
+
+Two compounding faults, both found with a headless-Chrome loop rather than by
+reading code:
+
+1. `Tone.start()` was called only after `await import('tone')`. Browsers require
+   `AudioContext.resume()` inside the user gesture, so by then the activation had
+   expired. The module is now primed on mount and `start()` resumes
+   synchronously when already primed.
+2. The real blocker: `clockRef.current` was assigned **inside `useMemo`**.
+   React re-runs the factory under `StrictMode`, so the ref kept the *discarded*
+   clock while the engine kept its own. The button primed one clock and the
+   engine read another, whose `now()` was `0` — producing a large negative time,
+   no scheduled notes, and an instant "Finished". The pair is now one `useState`
+   object, so the engine and the clock it reads are the same instance by
+   construction.
+
+### Play never asked for the microphone (fixed)
+
+`handlePlay` only toggled engine state; nothing instantiated
+`BasicPitchDetector`, so `getUserMedia` was never called. The detector and the
+engine's `setDetected`/`setDiagnostics` sinks both existed and were correct —
+they were simply never connected. Also fixed while wiring:
+
+- `inputLevel` was hardcoded to `0` in `getDiagnostics()`, so the meter always
+  read 0.000 even with signal present.
+- `setDiagnostics` stored the value but never emitted, so React never saw an
+  update. It now emits on a 250 ms throttle (diagnostics are status text, but
+  not per-frame state).
+- `src/audio/capture.ts` was dead and misleading: `AudioCapture.init()` created
+  an `AudioContext` but never called `getUserMedia`. Removed.
+- The model is served from `public/model/` instead of a CDN (see below).
+
+## Browser smoke tests (the only seam that reaches Web Audio)
+
+jsdom has no `AudioContext`, no `audioWorklet`, and no `mediaDevices`, so no
+unit test can exercise Listen or Play. Both were verified in real Chrome:
+
+- `npm run test:listen` — clicks Listen, asserts the score reaches
+  `Playing...`, that `AudioBufferSourceNode`s are actually scheduled, and that
+  the `AudioContext` resumed. Verified red against the buggy clock pair
+  (3 failures), green after the fix.
+- `npm run test:play` — asserts `getUserMedia` is called (the permission
+  prompt), that the stream goes live, that audio chunks reach the worklet, that
+  the input level rises, and that the game advances past its countdown.
+  Verified red before wiring (5 failures), green after.
+
+Both need Chrome on PATH (`CHROME_PATH` to override) and start their own Vite
+on ports 5179/5181.
+
+**Caveat on `test:play`:** it drives Chrome's fake microphone, which beeps with
+silence in between, so any single instantaneous `level` sample can read 0. The
+test tracks the peak across samples instead. A real microphone behaves
+differently — treat `keysHighlightedAtPeak` as informational, not an assertion.
+
 ## Unverified assumptions (to verify as needed)
 
 1. Unicode clef glyphs (U+1D11E, U+1D122) render acceptably in target browsers —
    still needs a real browser.
-2. The Basic Pitch model is still loaded from a CDN
-   (`src/audio/basic-pitch-detector.ts`). The spec calls for a locally served model.
-   The package ships `model/model.json` plus `group1-shard1of1.bin`, so both files
-   need to be copied to `public/` — the JSON alone is not enough because the manifest
-   references the binary by relative path.
+2. ~~The Basic Pitch model is loaded from a CDN~~ — **resolved.** Both
+   `model/model.json` and `group1-shard1of1.bin` are now in `public/model/`
+   (the JSON alone is not enough: the manifest references the binary by relative
+   path) and `MODEL_URL` points at `/model/model.json`.
 3. Salamander samples are still fetched from
    `https://tonejs.github.io/audio/salamander/`, so Listen needs network access.
    There is a PolySynth fallback if the samples fail to load.
@@ -71,9 +125,10 @@ running them.
 
 ## Not yet implemented
 
-- Microphone capture / detection is not wired to the UI. `BasicPitchDetector`
-  exists and is type-correct but nothing instantiates it, and the local model
-  requirement above is unmet.
+- Basic Pitch inference measured **1.2-1.8 s per pass** in headless Chrome,
+  which bounds how quickly Play can react. The package uses `@tensorflow/tfjs`
+  3.x with the WebGL backend available, so a GPU-backed browser should be much
+  faster than the test environment — not yet measured on real hardware.
 - YouTube import is not wired to the UI.
 - No HTTPS in production; `backend/app/main.py` mounts the frontend as static files
   only.

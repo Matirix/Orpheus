@@ -31,6 +31,8 @@ export interface EngineOptions {
 
 const COUNTDOWN_BEATS = 2
 const MAX_DT_SECONDS = 0.1
+/** Diagnostics are status text: a few updates a second is plenty. */
+const DIAGNOSTIC_EMIT_INTERVAL_MS = 250
 const LOOKAHEAD_SECONDS = 0.25
 
 export function buildGameNotes(song: Song): GameNote[] {
@@ -87,6 +89,7 @@ export class GameEngine {
 
   private statusCb: ((status: EngineStatus) => void) | null = null
   private lastScoreText = ''
+  private lastDiagnosticEmit = 0
   private mounted = false
 
   constructor(options: EngineOptions) {
@@ -123,6 +126,14 @@ export class GameEngine {
 
   setDiagnostics(d: Diagnostics): void {
     this.diagnostics = d
+    // The detector pushes this on every worklet chunk. Emit at most a few
+    // times a second: diagnostics are status text (React's job), but the
+    // rAF frame rate is not.
+    const now = Date.now()
+    if (now - this.lastDiagnosticEmit >= DIAGNOSTIC_EMIT_INTERVAL_MS) {
+      this.lastDiagnosticEmit = now
+      this.emit()
+    }
   }
 
   setDetected(pitches: Set<number>): void {
@@ -172,14 +183,19 @@ export class GameEngine {
     this.emit()
   }
 
-  startDemo(): boolean {
-    if (!this.song) return false
+  /**
+ * Starts Listen playback. Returns null on success, or a human-readable reason
+ * for refusing — never a bare `false`, which hid which precondition failed.
+ */
+  startDemo(): string | null {
+    if (!this.song) return 'no song is selected'
     // Without a live audio clock the scheduler would compute a negative time and
     // report "Finished" instantly, so refuse instead of silently doing nothing.
-    if (!this.clock.isReady()) return false
+    if (!this.clock.isReady()) return 'the audio clock has not started'
     // The render/scheduler loop has to be running for anything to be audible.
-    if (!this.rafHandle) return false
-    if (this.song.parts.every((p) => p.notes.length === 0)) return false
+    if (!this.rafHandle) return 'the render loop is not running'
+    if (this.song.parts.every((p) => p.notes.length === 0))
+      return 'the selected song has no notes'
     this.stopDemo()
     this.running = false
     this.notes = buildGameNotes(this.song)
@@ -191,7 +207,7 @@ export class GameEngine {
     this.demoPlaying = true
     this.lastScoreText = ''
     this.setScore('Playing...')
-    return true
+    return null
   }
 
   stopDemo(message?: string): void {

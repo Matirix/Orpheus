@@ -1,7 +1,7 @@
 import { BasicPitch } from '@spotify/basic-pitch'
 import type { NoteDetector, Diagnostics } from './detector'
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/model/model.json'
+const MODEL_URL = '/model/model.json'
 const SAMPLE_RATE = 22050
 const WINDOW = 43844
 const READBACK: Record<string, [number, number]> = {
@@ -26,12 +26,24 @@ export class BasicPitchDetector implements NoteDetector {
   private chunkCount = 0
   private maxProb = 0
   private inferMs = 0
+  private inputLevel = 0
   private ring = new Float32Array(WINDOW)
   private gate = 0.003
   private threshold = 0.3
   private mode: 'fast' | 'balanced' | 'accurate' = 'balanced'
 
   async start(): Promise<void> {
+    try {
+      await this.openStream()
+    } catch (err) {
+      // Release a partially opened capture so a denied prompt or failed model
+      // load does not leak an AudioContext or a live mic track.
+      this.stop()
+      throw err
+    }
+  }
+
+  private async openStream(): Promise<void> {
     this.ctx = new AudioContext({ latencyHint: 'interactive' })
     await this.ctx.resume()
 
@@ -96,6 +108,7 @@ export class BasicPitchDetector implements NoteDetector {
       sum += v * v
     }
     const level = Math.sqrt(sum / 4096)
+    this.inputLevel = level
 
     if (level < this.gate) {
       this.notesCallback?.(new Set())
@@ -161,7 +174,7 @@ export class BasicPitchDetector implements NoteDetector {
       ctxState: this.ctx?.state || 'closed',
       ctxSampleRate: this.ctx?.sampleRate || 0,
       chunkCount: this.chunkCount,
-      inputLevel: 0,
+      inputLevel: this.inputLevel,
       gate: this.gate,
       peakProb: this.maxProb,
       inferenceMs: this.inferMs,

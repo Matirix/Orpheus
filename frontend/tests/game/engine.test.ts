@@ -208,7 +208,7 @@ describe('listen refuses to run without a live audio clock', () => {
 
     // The bug: with now() stuck at 0 the scheduler computed a large negative
     // time, queued nothing, and immediately reported "Finished".
-    expect(e.startDemo()).toBe(false)
+    expect(e.startDemo()).toBe("the audio clock has not started")
     expect(e.getStatus().demoPlaying).toBe(false)
 
     dead.time = 2
@@ -231,7 +231,7 @@ describe('tempo control', () => {
     mount(engine)
     engine.setSong(SONG)
     engine.setBpm(60)
-    expect(engine.startDemo()).toBe(true)
+    expect(engine.startDemo()).toBeNull()
 
     // At 60bpm a beat lasts a second: after the 2-beat countdown, t=0.2 at
     // t=2.2s, so only the first note has reached its start time. The second
