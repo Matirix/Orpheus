@@ -54,17 +54,21 @@ def test_youtube_15_min_limit(mock_ydl):
         assert "15 minutes" in str(e)
 
 
-@patch("backend.app.jobs.download_audio")
-@patch("backend.app.jobs.transcribe")
-def test_job_lifecycle(mock_transcribe, mock_download, tmp_path, monkeypatch):
+@patch("backend.app.jobs.threading.Thread")
+def test_create_job_starts_out_queued(mock_thread, tmp_path, monkeypatch):
     # Keep test runs out of the real work/ folder: they must not leave a
     # half-finished job behind for a human to find later.
     monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
-    mock_download.return_value = (Path("/tmp/audio.mp3"), "Test Song")
+
     job_id = jobs.create_job("https://www.youtube.com/watch?v=test")
+
     job = jobs.get_job(job_id)
     assert job is not None
     assert job["status"] == "queued"
+    # The worker is started but never runs here, so nothing moves the job
+    # out of "queued" while the assertions are being read.
+    mock_thread.return_value.start.assert_called_once()
+    assert _sidecar(job_id, tmp_path)["status"] == "queued"
 
 
 @patch("backend.app.jobs.threading.Thread")
