@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:library": "node scripts/library.smoke.mjs",
+    "test:https": "node scripts/https.smoke.mjs",
     "test:listen": "node scripts/listen.smoke.mjs",
     "test:play": "node scripts/play.smoke.mjs",
     "test:youtube": "node scripts/youtube.smoke.mjs"

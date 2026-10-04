@@ -135,9 +135,11 @@ export function Orpheus() {
   }, [])
 
   // Load the Tone module up front so the Listen click can resume the
-  // AudioContext synchronously, inside the user gesture.
+  // AudioContext synchronously, inside the user gesture — and warm Basic Pitch
+  // the same way, so Play does not spend its own gesture on a module download.
   useEffect(() => {
     void clock.prime()
+    void import('../audio/basic-pitch-detector')
   }, [clock])
 
   useEffect(() => {
@@ -254,7 +256,8 @@ export function Orpheus() {
     setBusy('Requesting microphone access...')
     try {
       if (!detectorRef.current) {
-        // Loaded on demand: Basic Pitch only matters once Play is pressed.
+        // The module was warmed at mount, so this resolves from cache and the
+        // AudioContext below is still created inside the click's gesture.
         const { BasicPitchDetector } = await import(
           '../audio/basic-pitch-detector'
         )

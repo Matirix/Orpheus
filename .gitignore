@@ -10,6 +10,9 @@ venv/
 # Backend working directory (WAV files, transkun output)
 work/
 
+# Local HTTPS material — the CA private key never leaves this machine
+certs/
+
 # Node
 node_modules/
 dist/

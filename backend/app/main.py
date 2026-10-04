@@ -3,11 +3,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import APP_DIR, YOUTUBE_RE
+from .config import APP_DIR, CA_PEM, YOUTUBE_RE
 from .jobs import create_job, get_job
 from .songs import MEDIA_TYPES, find_song, list_songs, save_song, validate_song
 
@@ -87,6 +87,18 @@ async def save_song_endpoint(request: Request, title: str = Query(..., min_lengt
     if not validate_song(song):
         raise HTTPException(status_code=400, detail="That is not a song.")
     return {"id": save_song(title, song)}
+
+
+@app.get("/ca.pem")
+def ca_certificate():
+    """The local CA, so a phone on the same network can install it itself."""
+    if not CA_PEM.exists():
+        raise HTTPException(status_code=404, detail="No local CA on this server yet.")
+    return Response(
+        CA_PEM.read_bytes(),
+        media_type="application/pkix-cert",
+        headers={"Content-Disposition": 'attachment; filename="orpheus-ca.cer"'},
+    )
 
 
 frontend_dist = APP_DIR / "frontend" / "dist"

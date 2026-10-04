@@ -1,4 +1,7 @@
-.PHONY: dev test lint build
+.PHONY: dev test lint build host
+
+host:
+	@bash scripts/host.sh
 
 dev:
 	@cd frontend && npm run dev & cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000; wait

@@ -30,7 +30,12 @@
 - [ ] Listen plays with piano sound and visuals in time; Stop works
 
 ## Cross-Device
-- [ ] Works on the iPad over HTTPS (tunnel or local certificate)
+- [ ] `just host` serves the built app on the LAN; the iPad opens `https://<lan-ip>:8443/ca.pem`
+      from it, taps through Safari's trust warning, installs the profile (Settings >
+      Profile Downloaded) and enables it under Settings > General > About >
+      Certificate Trust Settings
+- [ ] The app then loads at `https://<lan-ip>:8443` with no certificate warning, Play
+      hears notes from the piano and advances the game, Listen plays with piano sound
 
 ## Notes
 - Microphone/audio output cannot be fully automated in this environment. All items above require human verification.

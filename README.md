@@ -67,6 +67,39 @@ just build
 cd /home/malefor/Projects/piano-detect && uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
+### Serve it on your network (iPad / phone)
+
+```bash
+just host        # or: make host
+```
+
+Builds the frontend and serves it over HTTPS on port 8443, printing the address,
+two QR codes (certificate first, then the app) and the steps below. Safari only
+exposes the microphone in a secure context, so HTTPS — not the HTTP server above
+— is what lets an iPad or phone be granted the microphone for Play and Listen.
+
+**One-time setup on the iPad**
+
+1. Scan the first QR, or open `https://<lan-ip>:8443/ca.pem`. Safari warns that
+   the certificate is not trusted — expected, the CA is not installed yet: **Show
+   Details > visit this website anyway**, then allow the download.
+2. **Settings > Profile Downloaded > Install** (passcode if it asks).
+3. **Settings > General > About > Certificate Trust Settings > switch on
+   "Orpheus local CA"**. Installing and trusting are two separate taps — both are
+   required, and this pair is the only thing that happens once.
+4. Scan the second QR and allow the microphone.
+
+That is the whole setup. The first run creates a local CA in `certs/` (ignored by
+git) and the running server hands it out at `/ca.pem`, so no cable or cloud
+account is involved — and because every run issues a fresh leaf certificate
+against that same CA, a changed address never needs another install.
+
+No QR handy? `certs/ca.pem` is an ordinary file: email it to yourself and tap the
+attachment, or drop it into iCloud/Drive and open it in Files — same profile.
+
+Options: `PORT=9000` for a different port, `SKIP_BUILD=1` to serve the last
+build, `LAN=192.168.1.78` to override the detected address.
+
 ## Linux/AMD GPU
 
 The backend is configured for AMD GPUs on Linux (PyTorch's ROCm build, index `rocm6.4`). For NVIDIA or CPU only, update pyproject.toml to remove ROCm-specific sources.

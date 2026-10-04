@@ -91,8 +91,14 @@ unit test can exercise Listen or Play. Both were verified in real Chrome:
   the input level rises, and that the game advances past its countdown.
   Verified red before wiring (5 failures), green after.
 
+- `npm run test:https` — starts `scripts/host.sh` on its own port and a
+  throwaway certificate directory, checks the served chain against the local CA
+  on the machine's LAN address, then drives Chrome over that origin: secure
+  context, `navigator.mediaDevices` present, `getUserMedia` granted, audio
+  chunks flowing. Needs `frontend/dist` (`npm run build`) rather than Vite.
+
 Both need Chrome on PATH (`CHROME_PATH` to override) and start their own Vite
-on ports 5179/5181.
+on ports 5179/5181 (test:https starts scripts/host.sh on 5185 instead).
 
 **Caveat on `test:play`:** it drives Chrome's fake microphone, which beeps with
 silence in between, so any single instantaneous `level` sample can read 0. The
@@ -171,12 +177,42 @@ and nothing about a song depends on the browser.
 - Verified end to end by `npm run test:library`, which needs the backend on 8000 and at
   least one song in `work/`.
 
+## Network hosting
+
+- `just host` / `make host` runs `scripts/host.sh`: builds the frontend, then
+  serves `backend.app.main:app` on `0.0.0.0:8443` with `--ssl-certfile` /
+  `--ssl-keyfile` straight from `frontend/dist`. The address comes from
+  `ip route get 1.1.1.1` (`LAN=` overrides it) and is printed as a URL, an
+  ASCII QR code (`uv run --with qrcode`, which draws from `get_matrix()` so it
+  needs no Pillow — plain URL on failure) and the install steps. It runs the
+  project venv's `python -m uvicorn` directly rather than `uv run`, so no
+  session can have its ml extras resynced away underneath it.
+- Certificates live in `certs/` (gitignored): the CA is created once
+  (`CA:TRUE,pathlen:0`, 10 years) and is what the iPad trusts; the leaf is
+  reissued on every run with
+  `IP:<lan>,IP:127.0.0.1,DNS:localhost,DNS:<host>,DNS:<host>.local`, EKU
+  `serverAuth`, and 825 days — Apple's maximum for a server certificate. The
+  one-time device step is installing `ca.pem` and enabling it under
+  Settings > General > About > Certificate Trust Settings; the per-run leaf
+  means a changed address never needs another install.
+- Getting the CA onto the device needs no cloud or cable: `GET /ca.pem` serves
+  `certs/ca.pem` as `application/pkix-cert` with an attachment disposition, so
+  Safari offers a download that installs as a profile. It reads `CERT_DIR` from
+  the environment (host.sh exports it), so a session using its own certificates
+  hands out the CA that actually signed it. Two QR codes are printed: the
+  certificate link first, then the app. `test:https` asserts the served bytes
+  are the signing CA and that the disposition is an attachment.
+- Safari on iOS exposes `navigator.mediaDevices` only in a secure context and
+  has no "allow insecure sites" switch, which is why HTTPS is required for
+  Play/Listen from a device rather than merely nice to have.
+- Play's detector module is warmed at mount next to `clock.prime()`, so
+  `handlePlay` creates its `AudioContext` inside the click's gesture on Safari
+  the way Listen already does.
+
 ## Not yet implemented
 
 - Basic Pitch inference measured **1.2-1.8 s per pass** in headless Chrome,
   which bounds how quickly Play can react. The package uses `@tensorflow/tfjs`
   3.x with the WebGL backend available, so a GPU-backed browser should be much
   faster than the test environment — not yet measured on real hardware.
-- No HTTPS in production; `backend/app/main.py` mounts the frontend as static files
-  only.
 - `docs/MANUAL_QA.md` steps have not been executed against a real browser.
