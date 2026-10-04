@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:library": "node scripts/library.smoke.mjs",
     "test:listen": "node scripts/listen.smoke.mjs",
     "test:play": "node scripts/play.smoke.mjs"
   },

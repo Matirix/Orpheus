@@ -4,15 +4,13 @@ import { ToneAudioClock } from '../playback/clock'
 import { loadVoice } from '../playback/sampler'
 import type { NoteDetector } from '../audio/detector'
 import { BUILTIN_SONGS } from '../songs/builtin'
-import { LocalStorageSongLibrary } from '../songs/library'
+import { library } from '../songs/library'
 import { parseMidi } from '../songs/midi'
 import { parseMusicXML } from '../songs/musicxml'
 import type { Song } from '../songs/types'
 import type { Mode } from '../game/modes'
 import { MIN_FALLING_HEIGHT } from '../render/layout'
 import './PianoLearn.css'
-
-const library = new LocalStorageSongLibrary()
 
 /** The clock and the engine must be the same instance pair. */
 function createEnginePair(): { clock: ToneAudioClock; engine: GameEngine } {
@@ -46,7 +44,7 @@ const ALERT_RE = /unavailable|failed|denied|Could not start/i
 
 export function PianoLearn() {
   const [selected, setSelected] = useState<string>(Object.keys(BUILTIN_SONGS)[0] ?? 'Ode to Joy')
-  const [customNames, setCustomNames] = useState<string[]>(() => library.list())
+  const [customSongs, setCustomSongs] = useState<Record<string, Song>>({})
   const [bpm, setBpm] = useState(120)
   const [mode, setMode] = useState<Mode>('timed')
   const [status, setStatus] = useState<EngineStatus>({
@@ -71,16 +69,39 @@ export function PianoLearn() {
   const mastheadRef = useRef<HTMLElement | null>(null)
   const noticesRef = useRef<HTMLDivElement | null>(null)
 
-  const songs = useMemo(() => {
-    const map: Record<string, Song> = { ...BUILTIN_SONGS }
-    for (const name of customNames) {
-      const loaded = library.load(name)
-      if (loaded) map[name] = loaded
-    }
-    return map
-  }, [customNames])
+  const songs = useMemo(() => ({ ...BUILTIN_SONGS, ...customSongs }), [customSongs])
 
   const currentSong = songs[selected]
+
+  /**
+   * The library lives on the server, so it is fetched once here and parsed
+   * into memory: everything in work/ reaches the menu without depending on
+   * anything stored in this browser.
+   */
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        await library.migrate()
+      } catch (err) {
+        console.warn('Could not move songs off local storage', err)
+      }
+      try {
+        const loaded: Record<string, Song> = {}
+        for (const name of await library.list()) {
+          const song = await library.load(name)
+          if (song) loaded[name] = song
+        }
+        // Songs saved while this was fetching win, so they are spread last.
+        if (alive) setCustomSongs((prev) => ({ ...loaded, ...prev }))
+      } catch (err) {
+        console.warn('Could not load saved songs', err)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
 
   useEffect(() => {
     engine.onStatus(setStatus)
@@ -265,10 +286,11 @@ export function PianoLearn() {
           ? parseMusicXML(new TextDecoder().decode(buffer))
           : await parseMidi(buffer)
         const name = file.name.replace(/\.[^.]+$/, '')
-        library.save(name, song)
-        // Refresh the menu so the uploaded song is selectable, then select it.
-        setCustomNames(library.list())
-        setSelected(name)
+        // The library keeps it for the next start; the menu needs it now, and
+        // under whatever name it had free.
+        const stored = await library.save(name, song)
+        setCustomSongs((prev) => ({ ...prev, [stored]: song }))
+        setSelected(stored)
         engine.setSong(song)
         setBpm(song.bpm)
       } catch (err) {

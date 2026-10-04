@@ -123,6 +123,30 @@ running them.
 - `Tone.Sampler` accepts `urls`, `release`, `baseUrl`, and `onload` options in
   Tone 15.
 
+## Song library
+
+`work/` is the library. `backend/app/songs.py` lists every folder that holds a payload —
+`out.mid` from a conversion, `song.json` from a song the browser parsed — and serves it
+from `GET /api/songs` and `GET /api/songs/{id}`, so the menu is the same on every start
+and nothing about a song depends on the browser.
+
+- `frontend/src/songs/library.ts` is the only caller: `list()` fetches the rows,
+  `load()` reads the bytes and parses them (MIDI through `parseMidi`, a stored song as it
+  was saved), `save()` posts one.
+- Saving is keyed by name, so the same title resolves to one folder instead of stacking
+  up copies — and a transcription owns its folder: an upload stored under the same name
+  leaves the MIDI alone rather than replacing it with something lossier.
+- Titles go through `songName()` on the way in, so a long YouTube title and the menu
+  entry are the same string whether they are read at conversion time or on the next
+  launch.
+- Whatever is left in localStorage under `pl_songs` is moved across on the first load,
+  and the key is dropped only once every song is stored: an unreachable backend leaves it
+  in place for the next start instead of losing the songs.
+- A conversion does not save the parsed song — the job's own `out.mid` is already in
+  `work/`, and storing it again would put two copies of one song in the library.
+- Verified end to end by `npm run test:library`, which needs the backend on 8000 and at
+  least one song in `work/`.
+
 ## Not yet implemented
 
 - Basic Pitch inference measured **1.2-1.8 s per pass** in headless Chrome,

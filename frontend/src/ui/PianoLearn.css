@@ -29,6 +29,8 @@
   line-height: 1.02;
   letter-spacing: -0.012em;
   color: var(--ivory);
+  /* A long song title still has to break sensibly. */
+  text-wrap: balance;
 }
 
 .score {

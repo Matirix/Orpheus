@@ -21,7 +21,7 @@ A browser-based piano practice app. It listens to you play through the microphon
 **Songs**
 - Upload MIDI files (`.mid`, `.midi`) or uncompressed MusicXML (`.musicxml`, `.xml`)
 - Pick a single part or track (for example, right hand only)
-- Uploaded songs are saved in the browser's local storage
+- Uploaded songs are stored under `work/` on the server, so the song list is the same after a restart
 - **YouTube to MIDI:** paste a YouTube link and the server downloads the audio, transcribes it to MIDI, and adds it as a song
 - **Listen:** plays any song aloud with a piano sound while the staff and falling notes animate
 

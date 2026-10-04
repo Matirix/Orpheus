@@ -24,7 +24,7 @@
 - [ ] Uploading a MIDI and a MusicXML file works; the part selector changes the notes
 - [ ] Uploading PDFs/images or compressed .mxl shows appropriate error message
 - [ ] YouTube conversion works and shows progress; the song appears in the list
-- [ ] Uploaded songs survive a reload (localStorage)
+- [ ] Uploaded songs survive a reload (they come from `work/` on the server)
 
 ## Playback
 - [ ] Listen plays with piano sound and visuals in time; Stop works

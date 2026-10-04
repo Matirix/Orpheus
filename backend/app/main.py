@@ -1,6 +1,7 @@
+import json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .config import APP_DIR, YOUTUBE_RE
 from .jobs import create_job, get_job
+from .songs import MEDIA_TYPES, find_song, list_songs, save_song, validate_song
 
 app = FastAPI()
 
@@ -58,6 +60,33 @@ def job_midi(job_id: str):
     if not midi_path or not Path(midi_path).exists():
         raise HTTPException(status_code=404, detail="MIDI not found")
     return FileResponse(midi_path, media_type="audio/midi", filename="song.mid")
+
+
+@app.get("/api/songs")
+def list_songs_endpoint():
+    """Everything in work/ that can be played, so the menu survives a restart."""
+    return list_songs()
+
+
+@app.get("/api/songs/{song_id}")
+def get_song_endpoint(song_id: str):
+    found = find_song(song_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    path, kind = found
+    return FileResponse(path, media_type=MEDIA_TYPES[kind])
+
+
+@app.post("/api/songs")
+async def save_song_endpoint(request: Request, title: str = Query(..., min_length=1)):
+    """Store a song the client parsed, keyed by its name."""
+    try:
+        song = json.loads(await request.body())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="That is not a song.")
+    if not validate_song(song):
+        raise HTTPException(status_code=400, detail="That is not a song.")
+    return {"id": save_song(title, song)}
 
 
 frontend_dist = APP_DIR / "frontend" / "dist"

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { PianoLearn } from '../../src/ui/PianoLearn'
 import { MIN_FALLING_HEIGHT } from '../../src/render/layout'
+import { songServer, stubFetch } from '../helpers/songServer'
 
 describe('PianoLearn view', () => {
   beforeEach(() => {
@@ -10,6 +11,13 @@ describe('PianoLearn view', () => {
     HTMLCanvasElement.prototype.getContext = vi.fn(
       () => null
     ) as unknown as HTMLCanvasElement['getContext']
+    // The library is fetched on mount; an unstubbed fetch would reach a real
+    // backend, if one happens to be running.
+    stubFetch(songServer().handle)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders controls and the three mount points', () => {

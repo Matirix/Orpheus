@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { PianoLearn } from '../../src/ui/PianoLearn'
 import type { Song } from '../../src/songs/types'
+import { songServer, stubFetch } from '../helpers/songServer'
 
 const UPLOADED: Song = {
   bpm: 90,
@@ -30,6 +31,13 @@ describe('uploading a song', () => {
     HTMLCanvasElement.prototype.getContext = vi.fn(
       () => null
     ) as unknown as HTMLCanvasElement['getContext']
+    // Saving goes to the server now; without this the test would write into
+    // whatever work/ folder the backend is actually using.
+    stubFetch(songServer().handle)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('adds the uploaded song to the song menu and selects it', async () => {
