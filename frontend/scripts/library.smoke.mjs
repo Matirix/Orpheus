@@ -86,7 +86,7 @@ try {
 
   await page.setViewport({ width: 1366, height: 768 })
   await page.goto(PAGE_URL, { waitUntil: 'networkidle2', timeout: 30000 })
-  await page.waitForSelector('.piano-learn select', { timeout: 15000 })
+  await page.waitForSelector('.orpheus select', { timeout: 15000 })
   // The library is fetched after the first paint, so give it a beat.
   await new Promise((r) => setTimeout(r, 1500))
 

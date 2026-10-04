@@ -20,7 +20,7 @@
   --ui: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
   --display: 'Bodoni Moda Variable', 'Bodoni Moda', Georgia, serif;
 
-  /* Page rhythm. --keyboard-h is read back by PianoLearn when it sizes the
+  /* Page rhythm. --keyboard-h is read back by Orpheus when it sizes the
      falling well, so these two are the source of truth for the stack. */
   --gutter: clamp(16px, 3vw, 34px);
   --keyboard-h: 132px;

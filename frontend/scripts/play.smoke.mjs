@@ -113,12 +113,12 @@ try {
   })
 
   await page.goto(PAGE_URL, { waitUntil: 'networkidle2', timeout: 30000 })
-  await page.waitForSelector('.piano-learn', { timeout: 15000 })
+  await page.waitForSelector('.orpheus', { timeout: 15000 })
 
   const statusText = () =>
-    page.evaluate(() => document.querySelector('.piano-learn .score')?.textContent ?? '')
+    page.evaluate(() => document.querySelector('.orpheus .score')?.textContent ?? '')
   const diagText = () =>
-    page.evaluate(() => document.querySelector('.piano-learn .status')?.textContent ?? '')
+    page.evaluate(() => document.querySelector('.orpheus .status')?.textContent ?? '')
 
   const clicked = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('button')].find(

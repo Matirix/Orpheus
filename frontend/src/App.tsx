@@ -1,8 +1,8 @@
-import { PianoLearn } from './ui/PianoLearn'
+import { Orpheus } from './ui/Orpheus'
 import './App.css'
 
 function App() {
-  return <PianoLearn />
+  return <Orpheus />
 }
 
 export default App

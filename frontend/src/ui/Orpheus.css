@@ -1,8 +1,8 @@
-/* Piano Learn — three bands stacked down the page:
+/* Orpheus — three bands stacked down the page:
    masthead (type), control strip (operations), instrument (canvases).
    Colour is inherited from the tokens in index.css. */
 
-.piano-learn {
+.orpheus {
   display: flex;
   flex-direction: column;
   min-height: 100svh;

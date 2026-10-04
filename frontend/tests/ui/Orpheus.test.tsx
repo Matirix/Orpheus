@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { PianoLearn } from '../../src/ui/PianoLearn'
+import { Orpheus } from '../../src/ui/Orpheus'
 import { MIN_FALLING_HEIGHT } from '../../src/render/layout'
 import { songServer, stubFetch } from '../helpers/songServer'
 
-describe('PianoLearn view', () => {
+describe('Orpheus view', () => {
   beforeEach(() => {
     window.localStorage.clear()
     // jsdom has no canvas backend; the renderers must no-op rather than throw
@@ -21,7 +21,7 @@ describe('PianoLearn view', () => {
   })
 
   it('renders controls and the three mount points', () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Listen' })).toBeTruthy()
     expect(container.querySelector('.keyboard')).toBeTruthy()
@@ -30,7 +30,7 @@ describe('PianoLearn view', () => {
   })
 
   it('builds all 88 keys with titles and geometry', () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const keys = container.querySelectorAll('.keyboard .key')
     expect(keys.length).toBe(88)
 
@@ -46,7 +46,7 @@ describe('PianoLearn view', () => {
   })
 
   it('sizes the falling canvas to the keyboard width', () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const falling = container.querySelector(
       'canvas.falling-canvas'
     ) as HTMLCanvasElement
@@ -58,7 +58,7 @@ describe('PianoLearn view', () => {
   })
 
   it('highlights a key on the next animation frame while it is held', async () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const key = container.querySelector('.keyboard .key[title="C4"]') as HTMLElement
     expect(key).toBeTruthy()
 
@@ -70,7 +70,7 @@ describe('PianoLearn view', () => {
   })
 
   it('keeps the falling canvas aligned with the keyboard', () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const falling = container.querySelector(
       'canvas.falling-canvas'
     ) as HTMLCanvasElement
@@ -86,7 +86,7 @@ describe('PianoLearn view', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(
       containerWidth
     )
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const keyboard = container.querySelector('.keyboard') as HTMLElement
     const keyboardWidth = Number.parseInt(keyboard.style.width, 10)
 

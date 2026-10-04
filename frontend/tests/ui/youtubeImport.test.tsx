@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { PianoLearn } from '../../src/ui/PianoLearn'
+import { Orpheus } from '../../src/ui/Orpheus'
 import type { Song } from '../../src/songs/types'
 import { json, songServer, stubFetch } from '../helpers/songServer'
 
@@ -48,7 +48,7 @@ describe('importing a song from YouTube', () => {
   })
 
   it('keeps Convert disabled until there is a url', () => {
-    render(<PianoLearn />)
+    render(<Orpheus />)
     const convert = screen.getByRole('button', { name: 'Convert' })
     expect(convert).toBeDisabled()
 
@@ -62,7 +62,7 @@ describe('importing a song from YouTube', () => {
   it('turns a url into a song in the menu and selects it', async () => {
     job = { status: 'done', message: 'Done', title: 'Clair de Lune' }
 
-    render(<PianoLearn />)
+    render(<Orpheus />)
     fireEvent.change(screen.getByLabelText(/YouTube/i), {
       target: { value: 'https://youtu.be/abc' },
     })
@@ -94,7 +94,7 @@ describe('importing a song from YouTube', () => {
     }
     const expected = 'Rick Astley - Never Gonna Give You Up (Official Video)'
 
-    render(<PianoLearn />)
+    render(<Orpheus />)
     fireEvent.change(screen.getByLabelText(/YouTube/i), {
       target: { value: 'https://youtu.be/x' },
     })
@@ -111,7 +111,7 @@ describe('importing a song from YouTube', () => {
       title: null,
     }
 
-    render(<PianoLearn />)
+    render(<Orpheus />)
     fireEvent.change(screen.getByLabelText(/YouTube/i), {
       target: { value: 'https://youtu.be/x' },
     })
@@ -134,7 +134,7 @@ describe('importing a song from YouTube', () => {
       throw new TypeError('Failed to fetch')
     })
 
-    render(<PianoLearn />)
+    render(<Orpheus />)
     fireEvent.change(screen.getByLabelText(/YouTube/i), {
       target: { value: 'https://youtu.be/x' },
     })

@@ -75,7 +75,7 @@ try {
 
   await page.setViewport({ width: 1366, height: 768 })
   await page.goto(PAGE_URL, { waitUntil: 'networkidle2', timeout: 30000 })
-  await page.waitForSelector('.piano-learn', { timeout: 15000 })
+  await page.waitForSelector('.orpheus', { timeout: 15000 })
 
   const urlInput = await page.$('input[type="url"]')
   if (!urlInput) fail('no url field rendered')

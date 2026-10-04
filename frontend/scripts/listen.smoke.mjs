@@ -115,11 +115,11 @@ try {
   })
 
   await page.goto(PAGE_URL, { waitUntil: 'networkidle2', timeout: 30000 })
-  await page.waitForSelector('.piano-learn', { timeout: 15000 })
+  await page.waitForSelector('.orpheus', { timeout: 15000 })
 
   const score = () =>
     page.evaluate(
-      () => document.querySelector('.piano-learn .score')?.textContent ?? ''
+      () => document.querySelector('.orpheus .score')?.textContent ?? ''
     )
 
   const clicked = await page.evaluate(() => {

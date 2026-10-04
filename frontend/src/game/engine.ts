@@ -43,7 +43,7 @@ export function buildGameNotes(song: Song): GameNote[] {
 }
 
 /**
- * Owns all per-frame state for the piano-learn view: the single
+ * Owns all per-frame state for the orpheus view: the single
  * requestAnimationFrame loop, note timing/judging, the "Listen" audio
  * scheduler, and the three renderers. React only reads discrete status
  * snapshots emitted through `onStatus`.

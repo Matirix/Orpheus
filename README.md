@@ -1,4 +1,4 @@
-# Piano Learn
+# Orpheus
 
 A browser-based piano practice app. It listens to you play through the microphone, shows what it hears on a full 88-key keyboard, and checks you against falling notes and a scrolling sheet-music staff. A small local Python server adds YouTube-to-MIDI conversion.
 

@@ -1,5 +1,5 @@
-/* Layout for the piano-learn view lives in PianoLearn.tsx so the canvas and
+/* Layout for the orpheus view lives in Orpheus.tsx so the canvas and
    keyboard sizes stay in one place. Only page-level rules belong here. */
-.piano-learn {
+.orpheus {
   width: 100%;
 }

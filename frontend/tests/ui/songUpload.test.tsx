@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { PianoLearn } from '../../src/ui/PianoLearn'
+import { Orpheus } from '../../src/ui/Orpheus'
 import type { Song } from '../../src/songs/types'
 import { songServer, stubFetch } from '../helpers/songServer'
 
@@ -41,7 +41,7 @@ describe('uploading a song', () => {
   })
 
   it('adds the uploaded song to the song menu and selects it', async () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const select = screen.getByLabelText(/Song/i) as HTMLSelectElement
     const before = Array.from(select.options).map((o) => o.value)
     expect(before).not.toContain('my-tune')
@@ -66,7 +66,7 @@ describe('uploading a song', () => {
   })
 
   it('applies the uploaded song tempo to the tempo control', async () => {
-    const { container } = render(<PianoLearn />)
+    const { container } = render(<Orpheus />)
     const file = new File([new Uint8Array([0x4d, 0x54, 0x68, 0x64])], 'slow.mid', {
       type: 'audio/midi',
     })

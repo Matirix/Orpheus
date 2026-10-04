@@ -11,7 +11,7 @@ import { parseMusicXML } from '../songs/musicxml'
 import type { Song } from '../songs/types'
 import type { Mode } from '../game/modes'
 import { MIN_FALLING_HEIGHT } from '../render/layout'
-import './PianoLearn.css'
+import './Orpheus.css'
 
 /** The clock and the engine must be the same instance pair. */
 function createEnginePair(): { clock: ToneAudioClock; engine: GameEngine } {
@@ -43,7 +43,7 @@ function keyboardHeight(): number {
 
 const ALERT_RE = /unavailable|failed|denied|Could not start/i
 
-export function PianoLearn() {
+export function Orpheus() {
   const [selected, setSelected] = useState<string>(Object.keys(BUILTIN_SONGS)[0] ?? 'Ode to Joy')
   const [customSongs, setCustomSongs] = useState<Record<string, Song>>({})
   const [bpm, setBpm] = useState(120)
@@ -355,7 +355,7 @@ export function PianoLearn() {
   const levelPct = Math.min(100, Math.round(diag.inputLevel * 100))
 
   return (
-    <div className="piano-learn">
+    <div className="orpheus">
       <header className="masthead" ref={mastheadRef}>
         <h1 className="piece">{selected}</h1>
         <p className={ALERT_RE.test(scoreText) ? 'score score--alert' : 'score'}>
