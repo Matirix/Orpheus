@@ -17,9 +17,13 @@ conflicting Vite types. Fixed by moving to Vitest 4.1.11, which accepts Vite 8.
 `songs/midi.ts` imports it directly, but it was only present transitively via
 `@spotify/basic-pitch`. Now declared explicitly in `package.json`.
 
-### `pytorch-triton-rocm` is configured but not depended on
-`pyproject.toml` lists it under `[tool.uv.sources]` with no matching entry in any
-`dependency-groups`, so the ROCm install will not actually pull it in.
+### `pytorch-triton-rocm` is configured but not depended on — resolved
+It was listed under `[tool.uv.sources]` with no matching dependency. Since that index is
+`explicit = true` and PyPI stops at 2.1.0, the resolver could not see 3.5.1 at all, so
+`uv sync --extra ml` failed with "there is no version of pytorch-triton-rocm==3.5.1".
+It is now a direct `ml` dependency. `torch` also carries a `>=2.8` floor: rocm6.4 ships
+no cp39–cp311 wheels before 2.8, so an unpinned torch resolved to 2.0.1, which has no
+wheel for Python 3.12.
 
 ### `WORK_DIR.mkdir()` runs at import time
 `backend/app/config.py` creates the working directory as an import side effect, which
@@ -107,8 +111,10 @@ differently — treat `keysHighlightedAtPeak` as informational, not an assertion
    `https://tonejs.github.io/audio/salamander/`, so Listen needs network access.
    There is a PolySynth fallback if the samples fail to load.
 4. The Transkun CLI argument order (input.wav output.mid) has not been executed.
-5. That uv resolves torch and `pytorch-triton-rocm` from the ROCm index — the
-   `pytorch-triton-rocm` source entry is currently inert (see above).
+5. ~~That uv resolves torch and `pytorch-triton-rocm` from the ROCm index — the
+   `pytorch-triton-rocm` source entry is currently inert~~ — **resolved**, see
+   above. `uv sync --extra ml` now installs on Python 3.12 and reports the RX 9070
+   XT as a usable device.
 
 ## Verified during this refactor
 
@@ -122,6 +128,24 @@ running them.
   and `duration`. `midi.ts` was using the correct field.
 - `Tone.Sampler` accepts `urls`, `release`, `baseUrl`, and `onload` options in
   Tone 15.
+
+## YouTube import
+
+Paste a URL into the control strip and press **Convert**. `frontend/src/api/youtube.ts`
+drives the backend job (`POST /api/jobs` → poll `GET /api/jobs/{id}` →
+`GET /api/jobs/{id}/midi`), the MIDI is parsed into the song library, and the same
+bytes stay at `work/<job_id>/out.mid`. Progress messages come from the server, so the
+status line never claims a stage the backend is not in.
+
+Job state lives only in server memory, so every change is also mirrored to
+`work/<job_id>/job.json`: id, URL, title, model, status, message, and — once the job is
+done — the MIDI filename. That sidecar is written aside and renamed, so a reader never
+catches half a file, and a failure to write it never fails the conversion. It is what
+makes a bare `work/` folder tell you what it contains after a restart.
+
+Needs `uv sync --extra ml` once; the first conversion downloads a ~165 MB checkpoint.
+Verified end to end by `npm run test:youtube` — real Chrome, real backend, 65 s for a
+3½ minute video with the model already warm.
 
 ## Song library
 
@@ -153,7 +177,6 @@ and nothing about a song depends on the browser.
   which bounds how quickly Play can react. The package uses `@tensorflow/tfjs`
   3.x with the WebGL backend available, so a GPU-backed browser should be much
   faster than the test environment — not yet measured on real hardware.
-- YouTube import is not wired to the UI.
 - No HTTPS in production; `backend/app/main.py` mounts the frontend as static files
   only.
 - `docs/MANUAL_QA.md` steps have not been executed against a real browser.

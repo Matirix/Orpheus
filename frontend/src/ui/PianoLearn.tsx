@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { convertYouTubeToMidi } from '../api/youtube'
 import { GameEngine, type EngineStatus } from '../game/engine'
 import { ToneAudioClock } from '../playback/clock'
 import { loadVoice } from '../playback/sampler'
 import type { NoteDetector } from '../audio/detector'
 import { BUILTIN_SONGS } from '../songs/builtin'
-import { library } from '../songs/library'
+import { library, songName } from '../songs/library'
 import { parseMidi } from '../songs/midi'
 import { parseMusicXML } from '../songs/musicxml'
 import type { Song } from '../songs/types'
@@ -54,6 +55,10 @@ export function PianoLearn() {
     diagnostics: EMPTY_DIAGNOSTICS,
   })
   const [busy, setBusy] = useState('')
+  // Kept apart from `busy`: a conversion runs for minutes, and Play/Listen
+  // stay usable throughout.
+  const [ytUrl, setYtUrl] = useState('')
+  const [converting, setConverting] = useState('')
 
   // Held as one state object, not a useMemo + ref: React re-runs the factory
   // under StrictMode, and a ref written during render keeps the *discarded*
@@ -67,6 +72,7 @@ export function PianoLearn() {
   const staffRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const mastheadRef = useRef<HTMLElement | null>(null)
+  const controlsRef = useRef<HTMLDivElement | null>(null)
   const noticesRef = useRef<HTMLDivElement | null>(null)
 
   const songs = useMemo(() => ({ ...BUILTIN_SONGS, ...customSongs }), [customSongs])
@@ -147,8 +153,10 @@ export function PianoLearn() {
     const staff = staffRef.current
     const stage = stageRef.current
     const masthead = mastheadRef.current
+    const controls = controlsRef.current
     const notices = noticesRef.current
-    if (!keyboardEl || !falling || !staff || !stage || !masthead || !notices) return
+    if (!keyboardEl || !falling || !staff || !stage || !masthead || !controls || !notices)
+      return
 
     let last = { width: 0, height: 0 }
 
@@ -168,11 +176,12 @@ export function PianoLearn() {
 
     relayout()
     // A ResizeObserver only reports size, never movement — so every element
-    // above the stage whose box can grow (the score wrapping, the meter
-    // appearing, the detail panel opening, the staff's first draw) is watched
-    // too, or the keyboard would drift below the fold unnoticed.
+    // above the stage whose box can grow (the score wrapping, the control
+    // strip wrapping to a second row, the meter appearing, the detail panel
+    // opening, the staff's first draw) is watched too, or the keyboard would
+    // drift below the fold unnoticed.
     const observer = new ResizeObserver(relayout)
-    for (const el of [stage, staff, masthead, notices]) observer.observe(el)
+    for (const el of [stage, staff, masthead, controls, notices]) observer.observe(el)
     window.addEventListener('resize', relayout)
     return () => {
       observer.disconnect()
@@ -305,6 +314,41 @@ export function PianoLearn() {
     [engine]
   )
 
+  /**
+   * YouTube URL -> backend job -> MIDI -> the song library.
+   *
+   * Progress messages come straight from the server (downloading,
+   * transcribing, ...), so the status line never invents a stage the backend
+   * is not actually in.
+   */
+  const handleConvert = useCallback(async () => {
+    const url = ytUrl.trim()
+    if (!url || converting) return
+    setConverting('Contacting the backend...')
+    try {
+      const { midi, title } = await convertYouTubeToMidi(url, setConverting)
+      const song = await parseMidi(midi)
+      // Titles repeat and run long; the library is keyed by name.
+      const name = songName(title)
+      // The MIDI already landed in work/ as the job's own output, so saving
+      // the parsed song too would put a second copy in the library.
+      setCustomSongs((prev) => ({ ...prev, [name]: song }))
+      setSelected(name)
+      engine.setSong(song)
+      setBpm(song.bpm)
+      setYtUrl('')
+      setStatus((s) => ({ ...s, scoreText: `Loaded "${name}"` }))
+    } catch (err) {
+      setStatus((s) => ({
+        ...s,
+        scoreText:
+          'YouTube import failed: ' + (err instanceof Error ? err.message : String(err)),
+      }))
+    } finally {
+      setConverting('')
+    }
+  }, [converting, engine, ytUrl])
+
   const diag = status.diagnostics
   const scoreText = status.scoreText
   const micLive = status.playRunning || diag.chunkCount > 0
@@ -319,7 +363,7 @@ export function PianoLearn() {
         </p>
       </header>
 
-      <div className="controls">
+      <div className="controls" ref={controlsRef}>
         <label className="field">
           Song
           <select value={selected} onChange={(e) => setSelected(e.target.value)}>
@@ -360,6 +404,27 @@ export function PianoLearn() {
             }}
           />
         </label>
+        <label className="field">
+          YouTube
+          <input
+            type="url"
+            value={ytUrl}
+            placeholder="https://youtube.com/watch?v="
+            onChange={(e) => setYtUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleConvert()
+            }}
+            disabled={converting !== ''}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void handleConvert()}
+          disabled={converting !== '' || ytUrl.trim() === ''}
+        >
+          {converting ? 'Converting...' : 'Convert'}
+        </button>
         <div className="actions">
           <button
             type="button"
@@ -381,7 +446,7 @@ export function PianoLearn() {
       </div>
 
       <div className="notices" ref={noticesRef}>
-        <div className="busy">{busy || ' '}</div>
+        <div className="busy">{busy || converting || ' '}</div>
         <div className="telemetry">
         {micLive && (
           <div className="meter" aria-hidden="true">

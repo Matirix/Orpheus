@@ -15,7 +15,13 @@ dependencies = [
 
 [project.optional-dependencies]
 ml = [
-  "torch",
+  # Floor, not a pin: rocm6.4 only ships cp39-cp311 wheels before 2.8, so a
+  # lower torch resolves to something uv cannot install on Python 3.12.
+  "torch>=2.8",
+  # Torch depends on this, but the ROCm index is `explicit = true` and PyPI
+  # stops at 2.1.0 — it has to be a direct dependency for the [tool.uv.sources]
+  # mapping to apply, or the resolver cannot see 3.5.1 at all.
+  "pytorch-triton-rocm; sys_platform == 'linux'",
   "librosa",
   "soundfile",
   "piano-transcription-inference",

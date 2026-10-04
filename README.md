@@ -52,6 +52,13 @@ cd /home/malefor/Projects/piano-detect && uv run uvicorn backend.app.main:app --
 cd frontend && npm run dev
 ```
 
+YouTube-to-MIDI needs the transcription model, which is an optional extra:
+```bash
+uv sync --extra ml
+```
+The first conversion also downloads a ~165 MB checkpoint. It is not needed for
+Play, Listen or file uploads.
+
 ### Production
 
 Build the frontend and serve from backend:

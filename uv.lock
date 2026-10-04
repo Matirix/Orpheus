@@ -813,6 +813,36 @@ wheels = [
 ]
 
 [[package]]
+name = "fsspec"
+version = "2025.10.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.10' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and sys_platform != 'linux'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/24/7f/2747c0d332b9acfa75dc84447a066fdf812b5a6b8d30472b74d309bfe8cb/fsspec-2025.10.0.tar.gz", hash = "sha256:b6789427626f068f9a83ca4e8a3cc050850b6c0f71f99ddb4f542b8266a26a59", size = 309285, upload-time = "2025-10-30T14:58:44.036Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/02/a6b21098b1d5d6249b7c5ab69dde30108a71e4e819d4a9778f1de1d5b70d/fsspec-2025.10.0-py3-none-any.whl", hash = "sha256:7c7712353ae7d875407f97715f0e1ffcc21e33d5b24556cb1e090ae9409ec61d", size = 200966, upload-time = "2025-10-30T14:58:42.53Z" },
+]
+
+[[package]]
+name = "fsspec"
+version = "2026.9.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'linux'",
+    "python_full_version == '3.10.*' and sys_platform != 'linux'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/cd/9be253869fc42e764de7f3dedd6969af7d44ff9c3375214a3442a6f3fc08/fsspec-2026.9.0.tar.gz", hash = "sha256:0f08147951c8cb31d844c3547d631053b127863b60be04cf06e121333ee0e2fe", size = 333545, upload-time = "2026-09-18T17:50:42.825Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6c/c0/a98505f18594f1bce828bb159cec0fcf9860562f1a2c85913409fc8f3d9e/fsspec-2026.9.0-py3-none-any.whl", hash = "sha256:8dd6e646e99ea382bd85f97a45e6b526a442d79423a7dc673f1e2756d05fcb5f", size = 221738, upload-time = "2026-09-18T17:50:41.341Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -864,6 +894,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44", size = 216463, upload-time = "2026-09-17T14:11:04.752Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
+]
+
+[[package]]
+name = "importlib-metadata"
+version = "8.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "zipp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/5e/f8e9a1d23b9c20a551a8a02ea3637b4642e22c2626e3a13a9a29cdea99eb/importlib_metadata-8.7.1-py3-none-any.whl", hash = "sha256:5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151", size = 27865, upload-time = "2025-12-21T10:00:18.329Z" },
 ]
 
 [[package]]
@@ -1786,10 +1828,14 @@ ml = [
     { name = "librosa" },
     { name = "numpy" },
     { name = "piano-transcription-inference" },
+    { name = "pytorch-triton-rocm", version = "3.4.0", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "python_full_version < '3.10' and sys_platform == 'linux'" },
+    { name = "pytorch-triton-rocm", version = "3.5.1", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "python_full_version >= '3.10' and sys_platform == 'linux'" },
     { name = "soundfile", version = "0.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "soundfile", version = "0.14.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "torch", version = "2.0.1", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "sys_platform == 'linux'" },
-    { name = "torch", version = "2.0.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
+    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and sys_platform != 'linux'" },
+    { name = "torch", version = "2.8.0+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "python_full_version < '3.10' and sys_platform == 'linux'" },
+    { name = "torch", version = "2.9.1+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "python_full_version >= '3.10' and sys_platform == 'linux'" },
+    { name = "torch", version = "2.14.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and sys_platform != 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -1804,9 +1850,10 @@ requires-dist = [
     { name = "librosa", marker = "extra == 'ml'" },
     { name = "numpy", marker = "extra == 'ml'", specifier = "<2" },
     { name = "piano-transcription-inference", marker = "extra == 'ml'" },
+    { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux' and extra == 'ml'", index = "https://download.pytorch.org/whl/rocm6.4" },
     { name = "soundfile", marker = "extra == 'ml'" },
-    { name = "torch", marker = "sys_platform == 'linux' and extra == 'ml'", index = "https://download.pytorch.org/whl/rocm6.4" },
-    { name = "torch", marker = "sys_platform != 'linux' and extra == 'ml'" },
+    { name = "torch", marker = "sys_platform == 'linux' and extra == 'ml'", specifier = ">=2.8", index = "https://download.pytorch.org/whl/rocm6.4" },
+    { name = "torch", marker = "sys_platform != 'linux' and extra == 'ml'", specifier = ">=2.8" },
     { name = "uvicorn", extras = ["standard"] },
     { name = "yt-dlp", extras = ["default"] },
 ]
@@ -2275,6 +2322,40 @@ wheels = [
 ]
 
 [[package]]
+name = "pytorch-triton-rocm"
+version = "3.4.0"
+source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
+resolution-markers = [
+    "python_full_version < '3.10' and sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "importlib-metadata" },
+    { name = "setuptools", version = "82.0.1", source = { registry = "https://pypi.org/simple" } },
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp310-cp310-linux_x86_64.whl", hash = "sha256:1ee0a5cf569175e63b43bc334dcaaf6f9b0d88eb455a452869c2bab14e1f7eb4", upload-time = "2025-08-05T21:10:13Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp311-cp311-linux_x86_64.whl", hash = "sha256:b0362725d8e16d185251e3dcd48455ebf9cdaad2c26052bb47ef08a1d687ed20", upload-time = "2025-08-05T21:10:05Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl", hash = "sha256:7afe951b9fc38f1a5b3a7b98bebbaa092bf51e6192b699b4fade9b1ad6fc9c2c", upload-time = "2025-08-05T21:10:03Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp39-cp39-linux_x86_64.whl", hash = "sha256:7f26455680a068b04456c6977348d404ff31d2fef1d7472e980483db7acbe462", upload-time = "2025-08-05T21:10:03Z" },
+]
+
+[[package]]
+name = "pytorch-triton-rocm"
+version = "3.5.1"
+source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp310-cp310-linux_x86_64.whl", upload-time = "2025-11-11T19:18:19Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp311-cp311-linux_x86_64.whl", upload-time = "2025-11-11T19:18:19Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp312-cp312-linux_x86_64.whl", upload-time = "2025-11-11T19:18:19Z" },
+    { url = "https://download-r2.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp39-cp39-linux_x86_64.whl", upload-time = "2025-11-11T19:18:26Z" },
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2584,6 +2665,33 @@ wheels = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "82.0.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.10' and sys_platform == 'linux'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
+]
+
+[[package]]
+name = "setuptools"
+version = "84.0.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'linux'",
+    "python_full_version == '3.10.*' and sys_platform != 'linux'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz", hash = "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73", size = 1168449, upload-time = "2026-08-08T18:27:58.365Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl", hash = "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670", size = 818216, upload-time = "2026-08-08T18:27:56.719Z" },
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2763,62 +2871,107 @@ wheels = [
 
 [[package]]
 name = "torch"
-version = "2.0.1"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.10' and sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "fsspec", version = "2025.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "jinja2" },
+    { name = "networkx", version = "3.2.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "sympy" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/87/f69752d0dd4ba8218c390f0438130c166fa264a33b7025adb5014b92192c/torch-2.8.0-cp310-cp310-win_amd64.whl", hash = "sha256:e8e5bf982e87e2b59d932769938b698858c64cc53753894be25629bdf5cf2f46", size = 241363614, upload-time = "2025-08-06T14:53:31.496Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/d6/e6d4c57e61c2b2175d3aafbfb779926a2cfd7c32eeda7c543925dceec923/torch-2.8.0-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:a3f16a58a9a800f589b26d47ee15aca3acf065546137fc2af039876135f4c760", size = 73611154, upload-time = "2025-08-06T14:53:10.919Z" },
+    { url = "https://files.pythonhosted.org/packages/84/57/2f64161769610cf6b1c5ed782bd8a780e18a3c9d48931319f2887fa9d0b1/torch-2.8.0-cp311-cp311-win_amd64.whl", hash = "sha256:8c7ef765e27551b2fbfc0f41bcf270e1292d9bf79f8e0724848b1682be6e80aa", size = 241366752, upload-time = "2025-08-06T14:53:38.692Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/5e/05a5c46085d9b97e928f3f037081d3d2b87fb4b4195030fc099aaec5effc/torch-2.8.0-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:5ae0524688fb6707c57a530c2325e13bb0090b745ba7b4a2cd6a3ce262572916", size = 73621174, upload-time = "2025-08-06T14:53:25.44Z" },
+    { url = "https://files.pythonhosted.org/packages/af/8a/5c87f08e3abd825c7dfecef5a0f1d9aa5df5dd0e3fd1fa2f490a8e512402/torch-2.8.0-cp312-cp312-win_amd64.whl", hash = "sha256:2f4ac52f0130275d7517b03a33d2493bab3693c83dcfadf4f81688ea82147d2e", size = 241326087, upload-time = "2025-08-06T14:53:46.503Z" },
+    { url = "https://files.pythonhosted.org/packages/be/66/5c9a321b325aaecb92d4d1855421e3a055abd77903b7dab6575ca07796db/torch-2.8.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:619c2869db3ada2c0105487ba21b5008defcc472d23f8b80ed91ac4a380283b0", size = 73630478, upload-time = "2025-08-06T14:53:57.144Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/dc/1f1f621afe15e3c496e1e8f94f8903f75f87e7d642d5a985e92210cc208d/torch-2.8.0-cp39-cp39-win_amd64.whl", hash = "sha256:5128fe752a355d9308e56af1ad28b15266fe2da5948660fad44de9e3a9e36e8c", size = 241249338, upload-time = "2025-08-06T14:57:05.669Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/95/ae26263aceb3d57b821179f827d0e321373ed49423e603dd5906ab14a730/torch-2.8.0-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:e9f071f5b52a9f6970dc8a919694b27a91ae9dc08898b2b988abbef5eddfd1ae", size = 73610795, upload-time = "2025-08-06T14:57:11.513Z" },
+]
+
+[[package]]
+name = "torch"
+version = "2.8.0+rocm6.4"
+source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
+resolution-markers = [
+    "python_full_version < '3.10' and sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "fsspec", version = "2025.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "jinja2" },
+    { name = "networkx", version = "3.2.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "pytorch-triton-rocm", version = "3.4.0", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "platform_machine == 'x86_64'" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:1fb876f6c215282bbfe8f3dc6d17a3b8755865601fac44e7c036a3f55b84a315", upload-time = "2025-10-02T00:47:22Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:2d35c37d15a0eb61ceab94dffae9399cab1b4a0d64668e4405025b5ce65df033", upload-time = "2025-10-02T00:49:27Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:b2ee7e4967d4ad38689a38cefff2a60baa1e884fe61d96c390c187e525a02b3a", upload-time = "2025-10-02T00:51:30Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:3bc4073e4aaed0f0d1e4c3cfdb14ccde502654bfacd02b0f2b9d4f7d3f6bd89b", upload-time = "2025-10-02T00:58:00Z" },
+]
+
+[[package]]
+name = "torch"
+version = "2.9.1+rocm6.4"
 source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'linux'",
     "python_full_version == '3.11.*' and sys_platform == 'linux'",
     "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
 ]
 dependencies = [
-    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "filelock", version = "4.0.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "filelock", version = "4.0.9", source = { registry = "https://pypi.org/simple" } },
+    { name = "fsspec", version = "2026.9.0", source = { registry = "https://pypi.org/simple" } },
     { name = "jinja2" },
-    { name = "networkx", version = "3.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "networkx", version = "3.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pytorch-triton-rocm", version = "3.5.1", source = { registry = "https://download.pytorch.org/whl/rocm6.4" } },
+    { name = "setuptools", version = "84.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sympy" },
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/torch-2.0.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:359bfaad94d1cda02ab775dc1cc386d585712329bb47b8741607ef6ef4950747", upload-time = "2023-10-06T21:39:27Z" },
-    { url = "https://download-r2.pytorch.org/whl/torch-2.0.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:b6019b1de4978e96daa21d6a3ebb41e88a0b474898fe251fd96189587408873e", upload-time = "2023-10-06T21:39:31Z" },
-    { url = "https://download-r2.pytorch.org/whl/torch-2.0.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:423e0ae257b756bb45a4b49072046772d1ad0c592265c5080070e0767da4e490", upload-time = "2023-10-06T21:39:38Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:879e2065c2493eca823c0037d2a70ee4a13f66146b3689395376ca728b743acc", upload-time = "2026-01-26T15:57:59Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:5a4a6c10ee410fdff68a8102d9f53f836d755b2d1eb6502f2f2853794f31ed0a", upload-time = "2026-01-26T16:02:43Z" },
+    { url = "https://download-r2.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:43471c9e4520402b5feeebd6c6d180e8bf2314402925798fe219c32fecd1ef95", upload-time = "2026-01-26T16:08:29Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.0.1"
+version = "2.14.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'linux'",
     "python_full_version == '3.11.*' and sys_platform != 'linux'",
     "python_full_version == '3.10.*' and sys_platform != 'linux'",
-    "python_full_version < '3.10' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "filelock", version = "4.0.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "filelock", version = "4.0.9", source = { registry = "https://pypi.org/simple" } },
+    { name = "fsspec", version = "2026.9.0", source = { registry = "https://pypi.org/simple" } },
     { name = "jinja2" },
-    { name = "networkx", version = "3.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "networkx", version = "3.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "setuptools", version = "84.0.0", source = { registry = "https://pypi.org/simple" } },
     { name = "sympy" },
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8a/e7/c216fe520b877cf4fe03858c825cd2031ca3e81e455b89639c9b5ec91981/torch-2.0.1-cp310-cp310-win_amd64.whl", hash = "sha256:7c84e44d9002182edd859f3400deaa7410f5ec948a519cc7ef512c2f9b34d2c4", size = 172339532, upload-time = "2023-05-08T16:38:31.628Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/27/5c912ccc490ec78585cd463198e80be27b53db77f02e7398b41305606399/torch-2.0.1-cp310-none-macosx_10_9_x86_64.whl", hash = "sha256:567f84d657edc5582d716900543e6e62353dbe275e61cdc36eda4929e46df9e7", size = 143409489, upload-time = "2023-05-08T16:41:49.802Z" },
-    { url = "https://files.pythonhosted.org/packages/5a/77/778954c0aad4f7901a1ba02a129bca7467c64a19079108e6b1d6ce8ae575/torch-2.0.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:787b5a78aa7917465e9b96399b883920c88a08f4eb63b5a5d2d1a16e27d2f89b", size = 55830861, upload-time = "2023-05-08T17:01:35.636Z" },
-    { url = "https://files.pythonhosted.org/packages/d0/c8/f0dc8642e3ce0a3ae5f05e5149ab9df5375d569294f7be9a1ab1d95a1d76/torch-2.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:dbd68cbd1cd9da32fe5d294dd3411509b3d841baecb780b38b3b7b06c7754434", size = 172343262, upload-time = "2023-05-08T17:29:02.117Z" },
-    { url = "https://files.pythonhosted.org/packages/8d/9b/f20686a5ebd09c6feacced771cf4041a521c411c5bb10359580e9e491797/torch-2.0.1-cp311-none-macosx_10_9_x86_64.whl", hash = "sha256:ef654427d91600129864644e35deea761fb1fe131710180b952a6f2e2207075e", size = 143124494, upload-time = "2023-05-08T16:28:47.223Z" },
-    { url = "https://files.pythonhosted.org/packages/85/68/f901437d3e3ef6fe97adb1f372479626d994185b8fa06803f5bdf3bb90fd/torch-2.0.1-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:25aa43ca80dcdf32f13da04c503ec7afdf8e77e3a0183dd85cd3e53b2842e527", size = 55831241, upload-time = "2023-05-08T17:31:49.294Z" },
-    { url = "https://files.pythonhosted.org/packages/48/f4/d0b61525a3d3db78636f1937d1bc24cbb39abc57484a545b72b6ab35c114/torch-2.0.1-cp39-cp39-win_amd64.whl", hash = "sha256:8742bdc62946c93f75ff92da00e3803216c6cce9b132fbca69664ca38cfb3e18", size = 172355544, upload-time = "2023-05-08T16:40:14.004Z" },
-    { url = "https://files.pythonhosted.org/packages/1a/32/222e49ed160fa7d0690a938c42428fecb60b4595101d8e88ea523f70e406/torch-2.0.1-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:c62df99352bd6ee5a5a8d1832452110435d178b5164de450831a3a8cc14dc680", size = 143409122, upload-time = "2023-05-08T17:03:11.498Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/67/7e19ebc15430f7385baee359383744c03d3600b51def9b399d0b8686e892/torch-2.0.1-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:671a2565e3f63b8fe8e42ae3e36ad249fe5e567435ea27b94edaa672a7d0c416", size = 55829984, upload-time = "2023-05-08T17:02:04.644Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/45/b0c389051ed02d77227202caf2c2abb1706ca4362781eb79bd6707359970/torch-2.14.1-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:e24b9815001d18e73e76eae1ea25f8ef908c6103e857378ad20f8f6cf5c954f5", size = 127249640, upload-time = "2026-09-30T17:43:48.426Z" },
+    { url = "https://files.pythonhosted.org/packages/48/88/28360126b07082ce4ab96a1bf8547595d06d6fea5eaffdfc7d2b56459e79/torch-2.14.1-cp310-cp310-win_amd64.whl", hash = "sha256:9ee7d50ec80ae5b4258cafc0ea108711988d961f21d0a68cf685650da2812e5f", size = 124096027, upload-time = "2026-09-30T17:43:53.513Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/9b/fd1cd143a7bda5abc1fc352ed7b431f6f52aa3c454293211a33656db2cb5/torch-2.14.1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:b6074b130fd26bc50f5d171f07dfed70db22dd0c354ab34767729249f9e0f042", size = 127281154, upload-time = "2026-09-30T17:43:58.328Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/54/4e0a71376b2fb15aaf65ed9e6a4c8043d36f554338c6daabc63059a5e157/torch-2.14.1-cp311-cp311-win_amd64.whl", hash = "sha256:0bd2fb0c4098856bc5af59fe5988bf38bdbcdb6550b44273c12ae425cb8ec17e", size = 124096268, upload-time = "2026-09-30T17:44:04.362Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/3c/379349820e9a6e713826de3d0b88f07728541bdcabe2a3afd128871cdc4b/torch-2.14.1-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:420dbf314c180ee4b86e9bc00aee5746a7d6e5bacdd7df925af671ed393f0b2e", size = 127307099, upload-time = "2026-09-30T17:44:10.421Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/1a/b9648b0d228e513f69f8453ec3f90a8d436d78ff6d85a2773e539f0c07cf/torch-2.14.1-cp312-cp312-win_amd64.whl", hash = "sha256:38bee9f2a2ccfc6898172a5075e4ba52522fbe143eeb099674fc67ab390e858d", size = 124113906, upload-time = "2026-09-30T17:52:21.377Z" },
 ]
 
 [[package]]

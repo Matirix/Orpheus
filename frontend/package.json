@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:library": "node scripts/library.smoke.mjs",
     "test:listen": "node scripts/listen.smoke.mjs",
-    "test:play": "node scripts/play.smoke.mjs"
+    "test:play": "node scripts/play.smoke.mjs",
+    "test:youtube": "node scripts/youtube.smoke.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

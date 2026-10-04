@@ -157,6 +157,28 @@ input[type='file']::file-selector-button:hover {
   border-color: var(--muted);
 }
 
+input[type='url'] {
+  width: clamp(170px, 20vw, 300px);
+  padding: 7px 10px;
+  font-size: 14px;
+  color: var(--ivory);
+  background-color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+
+input[type='url']::placeholder {
+  color: var(--muted);
+}
+
+input[type='url']:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+input[type='url']:disabled {
+  opacity: 0.5;
+}
+
 .btn {
   appearance: none;
   padding: 8px 18px;
