@@ -32,6 +32,17 @@ def _sidecar(job_id: str, root: Path) -> dict:
     return json.loads((root / job_id / "job.json").read_text())
 
 
+def _seed_upload(job_id: str) -> None:
+    jobs.jobs[job_id] = {
+        "status": "queued",
+        "message": "Queued",
+        "title": "practice",
+        "midi": None,
+        "model": "piano",
+        "created": "2026-10-03T00:00:00+00:00",
+    }
+
+
 def test_validate_youtube_url():
     assert youtube.validate_youtube_url("https://www.youtube.com/watch?v=123")
     assert youtube.validate_youtube_url("https://youtu.be/123")
@@ -172,3 +183,112 @@ def test_an_unwritable_sidecar_never_fails_the_job(tmp_path, monkeypatch):
     jobs._update("blocked", status="done", message="Done")
 
     assert jobs.jobs["blocked"]["status"] == "done"
+
+
+def test_prepare_upload_writes_into_its_own_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+
+    job_id, audio_path = jobs.prepare_upload("practice.mp3")
+
+    assert audio_path == tmp_path / job_id / "practice.mp3"
+    assert audio_path.parent.is_dir()
+
+
+def test_prepare_upload_keeps_only_the_basename(tmp_path, monkeypatch):
+    # The name came from a query string, so a client can put anything in it.
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+
+    job_id, audio_path = jobs.prepare_upload("../../etc/passwd.wav")
+
+    assert audio_path == tmp_path / job_id / "passwd.wav"
+
+
+@patch("backend.app.jobs.threading.Thread")
+def test_start_upload_registers_the_job_queued(mock_thread, tmp_path, monkeypatch):
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+    job_id, audio_path = jobs.prepare_upload("practice.wav")
+    audio_path.write_bytes(b"RIFF")
+
+    jobs.start_upload(job_id, audio_path, "practice")
+
+    job = jobs.get_job(job_id)
+    assert job is not None
+    assert job["status"] == "queued"
+    # The title is known before any work happens: it is the file's own name.
+    assert job["title"] == "practice"
+    mock_thread.return_value.start.assert_called_once()
+
+    payload = _sidecar(job_id, tmp_path)
+    assert payload["status"] == "queued"
+    assert payload["title"] == "practice"
+    assert payload["url"] is None  # an upload has no source URL to record
+
+
+def test_run_upload_transcribes_and_records_the_midi(tmp_path, monkeypatch):
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+    _seed_upload("up001")
+    audio = tmp_path / "up001" / "practice.wav"
+    audio.parent.mkdir(parents=True)
+    audio.write_bytes(b"RIFF")
+
+    def fake_transcribe(source, midi, model, start, end):
+        midi.write_bytes(b"MThd")
+
+    monkeypatch.setattr(jobs, "check_duration", lambda *args: None)
+    monkeypatch.setattr(jobs, "transcribe", fake_transcribe)
+
+    jobs.run_upload("up001", audio, "piano")
+
+    payload = _sidecar("up001", tmp_path)
+    assert payload["status"] == "done"
+    assert payload["midi"] == "out.mid"
+    assert payload["title"] == "practice"
+    # the recording is cleaned up; the song it produced is not
+    assert not audio.exists()
+    assert (tmp_path / "up001" / "out.mid").exists()
+
+
+def test_run_upload_refuses_audio_over_the_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+    _seed_upload("up002")
+    audio = tmp_path / "up002" / "practice.wav"
+    audio.parent.mkdir(parents=True)
+    audio.write_bytes(b"RIFF")
+
+    transcriber = MagicMock()
+
+    def too_long(path, max_minutes):
+        raise ValueError("That audio is 42 minutes long; the limit is 15 minutes.")
+
+    monkeypatch.setattr(jobs, "check_duration", too_long)
+    monkeypatch.setattr(jobs, "transcribe", transcriber)
+
+    jobs.run_upload("up002", audio, "piano")
+
+    payload = _sidecar("up002", tmp_path)
+    assert payload["status"] == "error"
+    assert payload["message"] == "That audio is 42 minutes long; the limit is 15 minutes."
+    # refused before the model was loaded, not after
+    transcriber.assert_not_called()
+    assert not audio.exists()
+
+
+def test_run_upload_records_a_failure_and_keeps_the_record(tmp_path, monkeypatch):
+    monkeypatch.setattr(jobs, "WORK_DIR", tmp_path)
+    _seed_upload("up003")
+    audio = tmp_path / "up003" / "practice.wav"
+    audio.parent.mkdir(parents=True)
+    audio.write_bytes(b"RIFF")
+
+    monkeypatch.setattr(jobs, "check_duration", lambda *args: None)
+    monkeypatch.setattr(
+        jobs, "transcribe", MagicMock(side_effect=RuntimeError("transcribe blew up"))
+    )
+
+    jobs.run_upload("up003", audio, "piano")
+
+    payload = _sidecar("up003", tmp_path)
+    assert payload["status"] == "error"
+    assert payload["message"] == "transcribe blew up"
+    assert not audio.exists()
+    assert (tmp_path / "up003" / "job.json").exists()

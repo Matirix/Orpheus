@@ -75,18 +75,19 @@ export async function getMidi(id: string): Promise<ArrayBuffer> {
 }
 
 /**
- * Runs a conversion to completion, reporting the server's own progress
- * messages as it goes. The first poll happens immediately: a job that has
- * already failed should not take two seconds to say so.
+ * Polls a job to completion and hands back its MIDI, reporting the server's
+ * own progress messages as it goes. The first poll happens immediately: a job
+ * that has already failed should not take two seconds to say so.
  *
- * `pollMs` exists so tests do not have to wait out a real poll interval.
+ * Shared with audio uploads — same status vocabulary, same MIDI on the way
+ * back. `pollMs` exists so tests do not have to wait out a real poll interval.
  */
-export async function convertYouTubeToMidi(
-  url: string,
+export async function waitForJobMidi(
+  id: string,
   onProgress: (message: string) => void,
-  pollMs: number = POLL_MS
+  pollMs: number = POLL_MS,
+  fallbackTitle: string = 'YouTube song'
 ): Promise<Conversion> {
-  const id = await startJob(url)
   onProgress('Queued')
   for (let polls = 0; ; polls++) {
     if (polls >= MAX_POLLS) {
@@ -98,8 +99,17 @@ export async function convertYouTubeToMidi(
       throw new Error(job.message || 'Conversion failed.')
     }
     if (job.status === 'done') {
-      return { midi: await getMidi(id), title: job.title ?? 'YouTube song' }
+      return { midi: await getMidi(id), title: job.title ?? fallbackTitle }
     }
     await sleep(pollMs)
   }
+}
+
+export async function convertYouTubeToMidi(
+  url: string,
+  onProgress: (message: string) => void,
+  pollMs: number = POLL_MS
+): Promise<Conversion> {
+  const id = await startJob(url)
+  return waitForJobMidi(id, onProgress, pollMs)
 }

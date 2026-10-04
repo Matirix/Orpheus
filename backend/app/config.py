@@ -11,4 +11,7 @@ CERT_DIR = Path(os.environ.get("CERT_DIR") or APP_DIR / "certs")
 CA_PEM = CERT_DIR / "ca.pem"
 
 MAX_MINUTES = 15
+# Streaming, so a large file is bounded by the disk rather than by RAM.
+MAX_UPLOAD_BYTES = 256 * 1024 * 1024
+AUDIO_SUFFIXES = (".wav", ".mp3")
 YOUTUBE_RE = r"^https?://((www|m|music)\.)?(youtube\.com|youtu\.be)/.*$"

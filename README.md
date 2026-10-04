@@ -20,6 +20,8 @@ A browser-based piano practice app. It listens to you play through the microphon
 
 **Songs**
 - Upload MIDI files (`.mid`, `.midi`) or uncompressed MusicXML (`.musicxml`, `.xml`)
+- **Upload audio:** a `.wav` or `.mp3` goes up to the server and comes back
+  transcribed into a MIDI song, the same way a YouTube link does
 - Pick a single part or track (for example, right hand only)
 - Uploaded songs are stored under `work/` on the server, so the song list is the same after a restart
 - **YouTube to MIDI:** paste a YouTube link and the server downloads the audio, transcribes it to MIDI, and adds it as a song
@@ -52,12 +54,13 @@ cd /home/malefor/Projects/piano-detect && uv run uvicorn backend.app.main:app --
 cd frontend && npm run dev
 ```
 
-YouTube-to-MIDI needs the transcription model, which is an optional extra:
+YouTube-to-MIDI and audio uploads need the transcription model, which is an
+optional extra:
 ```bash
 uv sync --extra ml
 ```
 The first conversion also downloads a ~165 MB checkpoint. It is not needed for
-Play, Listen or file uploads.
+Play, Listen, or MIDI and MusicXML uploads.
 
 ### Production
 

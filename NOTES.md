@@ -153,6 +153,31 @@ Needs `uv sync --extra ml` once; the first conversion downloads a ~165 MB checkp
 Verified end to end by `npm run test:youtube` — real Chrome, real backend, 65 s for a
 3½ minute video with the model already warm.
 
+## Audio upload
+
+`Load file` accepts `.wav` and `.mp3` alongside MIDI and MusicXML. The bytes are
+posted raw to `POST /api/transcribe?title=…&filename=…` — no multipart, the endpoint
+streams them off the request into `work/<id>/`, bounded by `MAX_UPLOAD_BYTES` so a
+large file costs disk rather than RAM — and the job that comes back is polled
+exactly like a YouTube conversion.
+
+- `waitForJobMidi` in `frontend/src/api/youtube.ts` is shared by both paths: same
+  statuses, same server messages, same MIDI on the way back.
+- The extension is the gate, checked on the client (`AUDIO_RE`) and again on the
+  server (`AUDIO_SUFFIXES`); every other file still goes to the parsers in the
+  browser. The name from the query string is reduced to its basename before it is
+  ever used as a path.
+- `run_upload` checks the duration first (`check_duration`, `MAX_MINUTES`) and only
+  then takes `transcribe_lock`, so an over-long recording is refused before the
+  model loads and two transcriptions never overlap.
+- The recording is deleted in the same `finally` that cleans up a conversion's
+  download: `job.json` and `out.mid` are what stay, and `out.mid` is what puts the
+  song in the library.
+- The upload rides `converting` rather than `busy`, the same decision as the
+  Convert button, so Play and Listen stay clickable while the server works.
+- Needs `uv sync --extra ml`: librosa decodes the file (libsndfile reads MP3
+  directly, so ffmpeg is not involved on this path) and the model writes the MIDI.
+
 ## Song library
 
 `work/` is the library. `backend/app/songs.py` lists every folder that holds a payload —

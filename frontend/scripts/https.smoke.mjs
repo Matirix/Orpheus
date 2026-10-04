@@ -84,11 +84,19 @@ const url = await new Promise((resolve, reject) => {
 })
 const ca = readFileSync(join(certDir, 'ca.pem'))
 
-const fetchPath = (path) =>
+const httpCall = (method, path, body) =>
   new Promise((resolve, reject) => {
     const u = new URL(url)
-    const req = https.get(
-      { hostname: u.hostname, port: u.port, path, ca, timeout: 10000 },
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        path,
+        method,
+        ca,
+        timeout: 10000,
+        ...(body ? { headers: { 'Content-Length': body.length } } : {}),
+      },
       (res) => {
         const chunks = []
         res.on('data', (c) => chunks.push(c))
@@ -103,7 +111,11 @@ const fetchPath = (path) =>
     )
     req.on('timeout', () => req.destroy(new Error('request timed out')))
     req.on('error', reject)
+    if (body) req.write(body)
+    req.end()
   })
+
+const fetchPath = (path) => httpCall('GET', path)
 
 let statusCode = 0
 try {
@@ -133,6 +145,23 @@ try {
     else pass('/ca.pem serves the signing CA as a download')
   } catch (err) {
     fail('/ca.pem is not reachable: ' + err.message)
+  }
+
+  // The API a device talks to has to be served over TLS as well, not only the
+  // page: a rejected extension proves the upload route is mounted and reading
+  // the body the phone would actually send.
+  try {
+    const probe = await httpCall(
+      'POST',
+      '/api/transcribe?title=probe&filename=recording.ogg',
+      Buffer.from('not audio')
+    )
+    if (probe.status !== 400) fail(`/api/transcribe answered ${probe.status} to POST (400 expected)`)
+    else if (!/wav and \.mp3/.test(String(probe.body)))
+      fail('/api/transcribe rejected it with the wrong message: ' + probe.body)
+    else pass('/api/transcribe route answers over https')
+  } catch (err) {
+    fail('/api/transcribe is not reachable: ' + err.message)
   }
 
   const browser = await puppeteer.launch({

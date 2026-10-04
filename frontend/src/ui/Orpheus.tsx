@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AUDIO_RE, transcribeAudio } from '../api/audio'
 import { convertYouTubeToMidi } from '../api/youtube'
 import { GameEngine, type EngineStatus } from '../game/engine'
 import { ToneAudioClock } from '../playback/clock'
@@ -55,8 +56,8 @@ export function Orpheus() {
     diagnostics: EMPTY_DIAGNOSTICS,
   })
   const [busy, setBusy] = useState('')
-  // Kept apart from `busy`: a conversion runs for minutes, and Play/Listen
-  // stay usable throughout.
+  // Kept apart from `busy`: a conversion or an upload transcription runs for
+  // minutes, and Play/Listen stay usable throughout.
   const [ytUrl, setYtUrl] = useState('')
   const [converting, setConverting] = useState('')
 
@@ -286,8 +287,42 @@ export function Orpheus() {
     }
   }, [engine, status.playRunning, stopMic])
 
+  /** Puts a parsed song in the menu and on the stage under the name it has there. */
+  const loadSong = useCallback(
+    (name: string, song: Song) => {
+      setCustomSongs((prev) => ({ ...prev, [name]: song }))
+      setSelected(name)
+      engine.setSong(song)
+      setBpm(song.bpm)
+    },
+    [engine]
+  )
+
   const handleFile = useCallback(
     async (file: File) => {
+      if (AUDIO_RE.test(file.name)) {
+        // Server-side transcription, minutes at a time: it rides `converting`
+        // rather than `busy`, so Play and Listen stay clickable throughout.
+        setConverting('Uploading...')
+        try {
+          const { midi, title } = await transcribeAudio(file, setConverting)
+          // Titles repeat and run long; the library is keyed by name.
+          const name = songName(title)
+          // The MIDI landed in work/ as the job's own output, so it is loaded
+          // rather than saved — saving would store a second copy.
+          loadSong(name, await parseMidi(midi))
+          setStatus((s) => ({ ...s, scoreText: `Loaded "${name}"` }))
+        } catch (err) {
+          setStatus((s) => ({
+            ...s,
+            scoreText:
+              'Audio import failed: ' + (err instanceof Error ? err.message : String(err)),
+          }))
+        } finally {
+          setConverting('')
+        }
+        return
+      }
       setBusy('Converting...')
       try {
         const buffer = await file.arrayBuffer()
@@ -297,14 +332,10 @@ export function Orpheus() {
         const song = isXml
           ? parseMusicXML(new TextDecoder().decode(buffer))
           : await parseMidi(buffer)
-        const name = file.name.replace(/\.[^.]+$/, '')
         // The library keeps it for the next start; the menu needs it now, and
         // under whatever name it had free.
-        const stored = await library.save(name, song)
-        setCustomSongs((prev) => ({ ...prev, [stored]: song }))
-        setSelected(stored)
-        engine.setSong(song)
-        setBpm(song.bpm)
+        const stored = await library.save(file.name.replace(/\.[^.]+$/, ''), song)
+        loadSong(stored, song)
       } catch (err) {
         setStatus((s) => ({
           ...s,
@@ -314,7 +345,7 @@ export function Orpheus() {
         setBusy('')
       }
     },
-    [engine]
+    [loadSong]
   )
 
   /**
@@ -333,12 +364,9 @@ export function Orpheus() {
       const song = await parseMidi(midi)
       // Titles repeat and run long; the library is keyed by name.
       const name = songName(title)
-      // The MIDI already landed in work/ as the job's own output, so saving
-      // the parsed song too would put a second copy in the library.
-      setCustomSongs((prev) => ({ ...prev, [name]: song }))
-      setSelected(name)
-      engine.setSong(song)
-      setBpm(song.bpm)
+      // The MIDI already landed in work/ as the job's own output, so it is
+      // loaded rather than saved — saving would store a second copy.
+      loadSong(name, song)
       setYtUrl('')
       setStatus((s) => ({ ...s, scoreText: `Loaded "${name}"` }))
     } catch (err) {
@@ -350,7 +378,7 @@ export function Orpheus() {
     } finally {
       setConverting('')
     }
-  }, [converting, engine, ytUrl])
+  }, [converting, loadSong, ytUrl])
 
   const diag = status.diagnostics
   const scoreText = status.scoreText
@@ -399,7 +427,7 @@ export function Orpheus() {
           Load file
           <input
             type="file"
-            accept=".mid,.midi,.xml,.musicxml"
+            accept=".mid,.midi,.xml,.musicxml,.wav,.mp3"
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file) void handleFile(file)

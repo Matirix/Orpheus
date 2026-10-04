@@ -22,6 +22,9 @@
 ## Songs
 - [ ] Built-in songs load and play correctly
 - [ ] Uploading a MIDI and a MusicXML file works; the part selector changes the notes
+- [ ] Uploading a `.wav` or `.mp3` shows the server's own progress messages and the
+      transcribed song lands in the menu and is selected (needs `uv sync --extra ml`)
+- [ ] An audio file over 15 minutes is refused with the limit in the status line
 - [ ] Uploading PDFs/images or compressed .mxl shows appropriate error message
 - [ ] YouTube conversion works and shows progress; the song appears in the list
 - [ ] Uploaded songs survive a reload (they come from `work/` on the server)

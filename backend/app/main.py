@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -7,8 +8,8 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import APP_DIR, CA_PEM, YOUTUBE_RE
-from .jobs import create_job, get_job
+from .config import APP_DIR, AUDIO_SUFFIXES, CA_PEM, MAX_UPLOAD_BYTES, WORK_DIR, YOUTUBE_RE
+from .jobs import create_job, get_job, prepare_upload, start_upload
 from .songs import MEDIA_TYPES, find_song, list_songs, save_song, validate_song
 
 app = FastAPI()
@@ -99,6 +100,34 @@ def ca_certificate():
         media_type="application/pkix-cert",
         headers={"Content-Disposition": 'attachment; filename="orpheus-ca.cer"'},
     )
+
+
+@app.post("/api/transcribe")
+async def upload_audio(
+    request: Request,
+    title: str = Query(..., min_length=1, max_length=200),
+    filename: str = Query(..., min_length=1, max_length=200),
+):
+    """An uploaded .wav/.mp3, transcribed into a song the library can list."""
+    name = Path(filename).name
+    if Path(name).suffix.lower() not in AUDIO_SUFFIXES:
+        raise HTTPException(status_code=400, detail="Only .wav and .mp3 files can be transcribed.")
+    job_id, audio_path = prepare_upload(name)
+    try:
+        size = 0
+        with audio_path.open("wb") as fh:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="That file is too large.")
+                fh.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="That file is empty.")
+    except HTTPException:
+        shutil.rmtree(WORK_DIR / job_id, ignore_errors=True)
+        raise
+    start_upload(job_id, audio_path, title.strip() or audio_path.stem)
+    return {"id": job_id}
 
 
 frontend_dist = APP_DIR / "frontend" / "dist"

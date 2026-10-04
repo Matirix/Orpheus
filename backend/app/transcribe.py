@@ -6,6 +6,22 @@ from pathlib import Path
 _model = None
 
 
+def check_duration(audio_path: Path, max_minutes: float) -> None:
+    """Refuse audio whose transcription would outlast its usefulness.
+
+    The model walks a file in one pass, so an uploaded recording of an hour
+    would sit on the transcribe lock for an hour. Decoding here needs the ml
+    extra, same as transcribing does.
+    """
+    import librosa
+
+    seconds = librosa.get_duration(path=str(audio_path))
+    if seconds > max_minutes * 60:
+        raise ValueError(
+            f"That audio is {int(seconds // 60)} minutes long; the limit is {int(max_minutes)} minutes."
+        )
+
+
 def get_model():
     global _model
     if _model is None:
